@@ -428,27 +428,50 @@ Sincronização** e pelo histórico de evolução
 
 ## 15. Como fazer deploy
 
+**Deploy atual em produção:**
+
+- Frontend (Vercel): https://team-performance-sable.vercel.app
+- Backend (Railway): https://backend-production-69d9.up.railway.app
+- Projeto Railway: `impartial-optimism` (mesmo projeto que já hospedava o
+  Postgres usado em desenvolvimento — os dados/histórico sincronizados
+  foram reaproveitados, não é um banco novo).
+
 ### Frontend → Vercel
 
 1. Importe o repositório na Vercel apontando o **Root Directory** para
-   `frontend`.
-2. Build command: `npm run build` — Output directory: `dist`.
-3. Configure a variável de ambiente `VITE_API_URL` apontando para a URL
-   pública do backend (ex.: `https://seu-backend.up.railway.app/api`).
+   `frontend` (o Vercel detecta automaticamente Vite: build `vite build`,
+   output `dist`).
+2. Configure a variável de ambiente `VITE_API_URL` apontando para a URL
+   pública do backend + `/api` (ex.:
+   `https://backend-production-69d9.up.railway.app/api`).
 
 ### Backend + PostgreSQL → Railway
 
-1. Crie um novo projeto no Railway e provisione um serviço **PostgreSQL**.
-2. Adicione um serviço a partir do repositório, com **Root Directory**
-   `backend`.
+1. Provisione um serviço **PostgreSQL** no projeto Railway (ou reaproveite
+   um existente).
+2. Adicione um serviço a partir do repositório GitHub, com **Root
+   Directory** `backend`.
 3. Build command: `npm install && npm run prisma:generate && npm run build`.
    Start command: `npm run prisma:deploy && npm start`.
-4. Configure as variáveis de ambiente do backend (`DATABASE_URL` é
-   preenchida automaticamente pelo Railway ao linkar o Postgres;
-   configure as demais — `DRCLICK_TOKEN`, `DRCLICK_AUTHORIZATION`,
-   `DRCLICK_CLINIC_IDS`, `FRONTEND_URL` com a URL da Vercel, etc.).
-5. Após o deploy, acesse `/api/health` para confirmar que o banco e as
+4. Configure as variáveis de ambiente do backend:
+   - `DATABASE_URL` → referência ao serviço Postgres do próprio projeto
+     (`${{Postgres.DATABASE_URL}}`), preenchida automaticamente.
+   - `DRCLICK_API_URL`, `DRCLICK_TOKEN`/`DRCLICK_AUTHORIZATION`,
+     `DRCLICK_CLINIC_IDS`, `DRCLICK_TELEFONIA_CHANNEL_ID` — mesmos valores
+     usados em desenvolvimento.
+   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — credenciais de login do sistema.
+   - `JWT_SECRET` — **gere um valor novo e diferente do usado em
+     desenvolvimento** (ex.: `openssl rand -hex 48`).
+   - `FRONTEND_URL` — a URL de produção do Vercel (necessário para o CORS
+     liberar o frontend a chamar o backend).
+   - `NODE_ENV=production`, `PORT=3333`, `SYNC_CRON_ENABLED=true`,
+     `SYNC_CRON_EXPRESSION=*/15 * * * *`.
+5. Gere um domínio público para o serviço (Networking → Generate Domain).
+6. Após o deploy, acesse `/api/health` para confirmar que o banco e as
    credenciais do Dr.Click estão configurados corretamente.
+
+> Se o domínio do Vercel mudar (ex.: domínio customizado), atualize
+> `FRONTEND_URL` no Railway — senão o CORS passa a bloquear o frontend.
 
 ## 16. Validação com dados reais
 
