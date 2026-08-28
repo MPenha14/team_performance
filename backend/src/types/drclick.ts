@@ -145,3 +145,34 @@ export interface AppointmentByStatusParams {
   idusuario?: string;
   idcanalatendimento?: string;
 }
+
+// Tipos do endpoint /api/reports/users-performance - usado para o
+// "Recebimento Antecipado" (total_amount_billed) dos colaboradores de
+// Midias Sociais/Comercial. O campo "data" (lista de os_ids por
+// agendamento) nao e' usado - so o total agregado por role interessa.
+export interface UsersPerformanceRoleGroup {
+  role: string;
+  total_amount_billed: number;
+  total_amount_plan: number;
+  total_appointments: number;
+  total_orders: number;
+  tipo_visualizacao: string;
+}
+
+export interface UsersPerformanceData {
+  groupByRoleResponse: UsersPerformanceRoleGroup[];
+}
+
+export interface UsersPerformanceResponse {
+  success: boolean;
+  data: UsersPerformanceData;
+}
+
+export interface UsersPerformanceParams {
+  idclinica: string;
+  idusuario: string;
+  start_date: string;
+  end_date: string;
+  page?: number;
+  limit?: number;
+}

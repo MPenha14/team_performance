@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
 import { Dashboard } from "./pages/Dashboard";
 import { Performance } from "./pages/Performance";
@@ -33,12 +33,21 @@ export function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/performance" element={<Performance />} />
-        <Route path="/colaboradores" element={<Employees />} />
-        <Route path="/colaboradores/:employeeId" element={<EmployeeDetail />} />
+        <Route path="/" element={<Navigate to="/call-center" replace />} />
+
+        <Route path="/call-center" element={<Dashboard team="CALL_CENTER" />} />
+        <Route path="/call-center/performance" element={<Performance team="CALL_CENTER" />} />
+        <Route path="/call-center/colaboradores" element={<Employees team="CALL_CENTER" />} />
+        <Route path="/call-center/colaboradores/:employeeId" element={<EmployeeDetail />} />
+        <Route path="/call-center/ranking" element={<Ranking team="CALL_CENTER" />} />
+
+        <Route path="/midias-sociais" element={<Dashboard team="MIDIAS_SOCIAIS" />} />
+        <Route path="/midias-sociais/performance" element={<Performance team="MIDIAS_SOCIAIS" />} />
+        <Route path="/midias-sociais/colaboradores" element={<Employees team="MIDIAS_SOCIAIS" />} />
+        <Route path="/midias-sociais/colaboradores/:employeeId" element={<EmployeeDetail />} />
+        <Route path="/midias-sociais/ranking" element={<Ranking team="MIDIAS_SOCIAIS" />} />
+
         <Route path="/drclick" element={<DrClickIntegration />} />
-        <Route path="/ranking" element={<Ranking />} />
         <Route path="/relatorios" element={<Reports />} />
         <Route path="/configuracoes" element={<Settings />} />
       </Route>

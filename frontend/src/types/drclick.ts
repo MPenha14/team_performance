@@ -62,6 +62,7 @@ export interface EmployeePerformance {
   employeeId: string;
   name: string;
   role: string;
+  team: string;
   active: boolean;
   avatarUrl: string | null;
   patients: number;
@@ -78,6 +79,9 @@ export interface EmployeePerformance {
   serviceorderAmount: number;
   serviceorderBilled: number;
   amountPlan: number;
+  // Recebimento antecipado - so preenchido para colaboradores da equipe
+  // Midias Sociais (0 para os demais).
+  advancePayment: number;
   mappedAccounts: MappedAccount[];
 }
 

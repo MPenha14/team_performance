@@ -1,9 +1,12 @@
+import { useEffect } from "react";
 import { useFilters } from "../hooks/useFilters";
 import { useEmployees } from "../hooks/useEmployees";
+import { Team } from "../types/employee";
 
 interface FilterBarProps {
   onRefresh: () => void;
   isRefreshing?: boolean;
+  team?: Team;
 }
 
 function countDays(start: string, end: string): number {
@@ -13,9 +16,17 @@ function countDays(start: string, end: string): number {
   return Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
 }
 
-export function FilterBar({ onRefresh, isRefreshing }: FilterBarProps) {
+export function FilterBar({ onRefresh, isRefreshing, team }: FilterBarProps) {
   const { filters, setStartDate, setEndDate, setEmployeeId } = useFilters();
-  const { data: employees } = useEmployees(false);
+  const { data: employees } = useEmployees(false, team);
+
+  // Zera o colaborador selecionado ao trocar de equipe (Call Center <->
+  // Midias Sociais), ja que o filtro guarda um id que pode nao existir mais
+  // na lista da outra equipe.
+  useEffect(() => {
+    setEmployeeId(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [team]);
 
   const days = countDays(filters.startDate, filters.endDate);
 

@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { TopBar } from "../components/TopBar";
 import { KpiCard } from "../components/KpiCard";
 import { LoadingState } from "../components/LoadingState";
@@ -23,6 +23,7 @@ function initials(name: string): string {
 
 export function EmployeeDetail() {
   const { employeeId } = useParams<{ employeeId: string }>();
+  const navigate = useNavigate();
   const { filters } = useFilters();
   const { data, isLoading, isError, error, refetch } = useEmployeePerformance(employeeId, filters);
   const { data: history } = useEmployeeHistory(employeeId, filters);
@@ -32,9 +33,12 @@ export function EmployeeDetail() {
       <TopBar title="Performance Individual" subtitle="Detalhamento por colaborador" />
 
       <main className="flex-1 space-y-6 p-6">
-        <Link to="/colaboradores" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
+        >
           ← Voltar para colaboradores
-        </Link>
+        </button>
 
         {isLoading && <LoadingState />}
         {isError && <ErrorState error={error} onRetry={() => refetch()} />}
@@ -72,6 +76,13 @@ export function EmployeeDetail() {
               <KpiCard label="Retornos" value={formatNumber(data.employee.returns)} accent="slate" />
               <KpiCard label="Combos" value={formatNumber(data.employee.combos)} accent="violet" />
               <KpiCard label="Faturamento" value={formatCurrency(data.employee.revenue)} accent="emerald" />
+              {data.employee.team === "MIDIAS_SOCIAIS" && (
+                <KpiCard
+                  label="Recebimento Antecipado"
+                  value={formatCurrency(data.employee.advancePayment)}
+                  accent="emerald"
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

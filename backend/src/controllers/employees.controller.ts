@@ -13,6 +13,7 @@ function parseInput(req: Request): EmployeeInput {
   return {
     name: body.name,
     role: body.role,
+    team: body.team,
     email: body.email,
     phone: body.phone,
     avatarUrl: body.avatarUrl,
@@ -23,7 +24,8 @@ function parseInput(req: Request): EmployeeInput {
 
 export async function getEmployees(req: Request, res: Response): Promise<void> {
   const includeInactive = req.query.include_inactive !== "false";
-  const result = await listEmployees(includeInactive);
+  const team = (req.query.team as string) || undefined;
+  const result = await listEmployees(includeInactive, team);
   res.json({ success: true, data: result });
 }
 

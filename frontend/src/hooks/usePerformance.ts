@@ -5,13 +5,14 @@ import {
   fetchPerformanceHistory,
 } from "../services/performanceService";
 import { GlobalFilters } from "./useFilters";
+import { Team } from "../types/employee";
 
 const AUTO_REFRESH_MS = 15 * 60 * 1000; // 15 minutos
 
-export function usePerformance(filters: GlobalFilters) {
+export function usePerformance(filters: GlobalFilters, team?: Team) {
   return useQuery({
-    queryKey: ["performance", filters],
-    queryFn: () => fetchPerformance(filters),
+    queryKey: ["performance", filters, team],
+    queryFn: () => fetchPerformance(filters, team),
     refetchInterval: AUTO_REFRESH_MS,
     staleTime: 60 * 1000,
   });

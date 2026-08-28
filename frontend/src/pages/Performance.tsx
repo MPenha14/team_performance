@@ -8,7 +8,9 @@ import { EmptyState } from "../components/EmptyState";
 import { useFilters } from "../hooks/useFilters";
 import { usePerformance } from "../hooks/usePerformance";
 import { EmployeePerformance } from "../types/drclick";
-import { formatNumber, formatPercent } from "../utils/format";
+import { formatCurrency, formatNumber, formatPercent } from "../utils/format";
+import { Team } from "../types/employee";
+import { TEAM_LABEL, TEAM_SLUG } from "../utils/team";
 
 type SortKey = "totalSchedules" | "attendedSchedules" | "conversionRate";
 
@@ -18,11 +20,16 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "conversionRate", label: "Conversão" },
 ];
 
-export function Performance() {
+interface PerformanceProps {
+  team: Team;
+}
+
+export function Performance({ team }: PerformanceProps) {
   const { filters } = useFilters();
-  const { data, isLoading, isError, error, refetch } = usePerformance(filters);
+  const { data, isLoading, isError, error, refetch } = usePerformance(filters, team);
   const [sortKey, setSortKey] = useState<SortKey>("conversionRate");
   const navigate = useNavigate();
+  const isMidiasSociais = team === "MIDIAS_SOCIAIS";
 
   const ranked = useMemo<EmployeePerformance[]>(() => {
     const employees = data?.employees ?? [];
@@ -31,10 +38,13 @@ export function Performance() {
 
   return (
     <>
-      <TopBar title="Performance" subtitle="Agendamentos, atendimentos e conversão por colaborador" />
+      <TopBar
+        title={`Performance — ${TEAM_LABEL[team]}`}
+        subtitle="Agendamentos, atendimentos e conversão por colaborador"
+      />
 
       <main className="flex-1 space-y-6 p-6">
-        <FilterBar onRefresh={() => refetch()} isRefreshing={isLoading} />
+        <FilterBar onRefresh={() => refetch()} isRefreshing={isLoading} team={team} />
 
         <div className="flex items-center gap-3">
           <span className="text-xs font-medium text-slate-500">Ordenar por</span>
@@ -58,20 +68,23 @@ export function Performance() {
         {!isLoading && !isError && ranked.length > 0 && (
           <div className="overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-slate-900/5">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className={isMidiasSociais ? "w-full min-w-[820px] text-left text-sm" : "w-full min-w-[640px] text-left text-sm"}>
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Colaborador</th>
                     <th className="px-4 py-3 text-right">Total de Agendamentos</th>
                     <th className="px-4 py-3 text-right">Agendamentos Atendidos</th>
                     <th className="px-4 py-3 text-right">Conversão</th>
+                    {isMidiasSociais && (
+                      <th className="px-4 py-3 text-right">Recebimento Antecipado</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {ranked.map((employee) => (
                     <tr
                       key={employee.employeeId}
-                      onClick={() => navigate(`/colaboradores/${employee.employeeId}`)}
+                      onClick={() => navigate(`/${TEAM_SLUG[team]}/colaboradores/${employee.employeeId}`)}
                       className="cursor-pointer transition-colors hover:bg-slate-50"
                     >
                       <td className="px-4 py-3 font-medium text-slate-900">{employee.name}</td>
@@ -80,6 +93,11 @@ export function Performance() {
                       <td className="px-4 py-3 text-right font-semibold text-emerald-700">
                         {employee.conversionRate !== null ? formatPercent(employee.conversionRate) : "—"}
                       </td>
+                      {isMidiasSociais && (
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                          {formatCurrency(employee.advancePayment)}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

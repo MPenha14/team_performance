@@ -9,6 +9,7 @@ export async function getPerformance(req: Request, res: Response): Promise<void>
   const role = (req.query.role as string) || undefined;
   const employeeId = (req.query.employee_id as string) || undefined;
   const includeInactive = req.query.include_inactive === "true";
+  const team = (req.query.team as string) || undefined;
 
   const result = await listPerformance({
     startDate,
@@ -17,6 +18,7 @@ export async function getPerformance(req: Request, res: Response): Promise<void>
     role,
     employeeId,
     includeInactive,
+    team,
   });
 
   res.json({ success: true, data: result });

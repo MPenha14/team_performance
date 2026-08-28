@@ -9,6 +9,7 @@ import { RoleStatementUser, ServiceChannelSummaryItem } from "../types/drclick";
 import { AppError } from "../utils/AppError";
 import { UserTotals } from "./drclickCache.service";
 import { getAttendedCounts } from "./attendance.service";
+import { getAdvancePayments } from "./advancePayment.service";
 
 // Performance de um colaborador CADASTRADO manualmente (Employee), agregando
 // os valores das contas do Dr.Click mapeadas para ele (DrClickMapping).
@@ -19,6 +20,7 @@ export interface EmployeePerformance {
   employeeId: string;
   name: string;
   role: string;
+  team: string;
   active: boolean;
   avatarUrl: string | null;
   patients: number;
@@ -43,6 +45,11 @@ export interface EmployeePerformance {
   serviceorderAmount: number;
   serviceorderBilled: number;
   amountPlan: number;
+  // Recebimento antecipado (total_amount_billed do endpoint
+  // /api/reports/users-performance) - so calculado para colaboradores da
+  // equipe Midias Sociais (team === "MIDIAS_SOCIAIS"); fica 0 para os
+  // demais, que nao usam esse indicador.
+  advancePayment: number;
   mappedAccounts: { userId: string; name: string }[];
 }
 
@@ -50,16 +57,25 @@ export interface PerformanceFilters extends QueryFilters {
   role?: string;
   employeeId?: string;
   includeInactive?: boolean;
+  team?: string;
 }
 
 function emptyEmployeePerformance(
-  employee: { id: string; name: string; role: string; active: boolean; avatarUrl: string | null },
+  employee: {
+    id: string;
+    name: string;
+    role: string;
+    team: string;
+    active: boolean;
+    avatarUrl: string | null;
+  },
   mappedAccounts: { userId: string; name: string }[]
 ): EmployeePerformance {
   return {
     employeeId: employee.id,
     name: employee.name,
     role: employee.role,
+    team: employee.team,
     active: employee.active,
     avatarUrl: employee.avatarUrl,
     patients: 0,
@@ -76,6 +92,7 @@ function emptyEmployeePerformance(
     serviceorderAmount: 0,
     serviceorderBilled: 0,
     amountPlan: 0,
+    advancePayment: 0,
     mappedAccounts,
   };
 }
@@ -152,6 +169,7 @@ export async function listPerformance(filters: PerformanceFilters) {
       active: filters.includeInactive ? undefined : true,
       role: filters.role || undefined,
       id: filters.employeeId || undefined,
+      team: filters.team || undefined,
     },
     include: { mappings: true },
     orderBy: { name: "asc" },
@@ -178,6 +196,7 @@ export async function listPerformance(filters: PerformanceFilters) {
   });
 
   await applyAttendedCounts(results, filters);
+  await applyAdvancePayments(results, filters);
 
   return {
     summary: {
@@ -216,6 +235,28 @@ async function applyAttendedCounts(
   }
 }
 
+// Busca o recebimento antecipado (total_amount_billed) dos colaboradores
+// da equipe Midias Sociais - nao se aplica ao Call Center, entao pula a
+// chamada por completo quando nao ha ninguem dessa equipe na lista (evita
+// chamadas desnecessarias ao Dr.Click).
+async function applyAdvancePayments(
+  employees: EmployeePerformance[],
+  filters: QueryFilters
+): Promise<void> {
+  const midiasSociaisEmployees = employees.filter((e) => e.team === "MIDIAS_SOCIAIS");
+  const allUserIds = midiasSociaisEmployees.flatMap((e) => e.mappedAccounts.map((a) => a.userId));
+  if (allUserIds.length === 0) return;
+
+  const advanceByUser = await getAdvancePayments(allUserIds, filters);
+
+  for (const employee of midiasSociaisEmployees) {
+    employee.advancePayment = employee.mappedAccounts.reduce(
+      (sum, account) => sum + (advanceByUser.get(account.userId) ?? 0),
+      0
+    );
+  }
+}
+
 export async function getPerformanceByUserId(employeeId: string, filters: QueryFilters) {
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -250,6 +291,7 @@ export async function getPerformanceByUserId(employeeId: string, filters: QueryF
   }
 
   await applyAttendedCounts([performance], filters);
+  await applyAdvancePayments([performance], filters);
 
   return {
     employee: performance,

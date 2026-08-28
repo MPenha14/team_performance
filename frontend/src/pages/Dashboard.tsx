@@ -11,10 +11,16 @@ import { useFilters } from "../hooks/useFilters";
 import { useDashboardSummary } from "../hooks/useDashboard";
 import { useSync } from "../hooks/useSync";
 import { formatCurrency, formatNumber, formatPercent } from "../utils/format";
+import { Team } from "../types/employee";
+import { TEAM_LABEL } from "../utils/team";
 
-export function Dashboard() {
+interface DashboardProps {
+  team: Team;
+}
+
+export function Dashboard({ team }: DashboardProps) {
   const { filters } = useFilters();
-  const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useDashboardSummary(filters);
+  const { data, isLoading, isError, error, refetch, dataUpdatedAt } = useDashboardSummary(filters, team);
   const sync = useSync();
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -44,12 +50,14 @@ export function Dashboard() {
   const canceledSchedules = canceledStatus?.count ?? 0;
   const missedRevenue = missedStatus?.revenue ?? 0;
   const canceledRevenue = canceledStatus?.revenue ?? 0;
+  const advancePayment = data?.advancePayment ?? 0;
+  const isMidiasSociais = team === "MIDIAS_SOCIAIS";
 
   return (
     <>
       <TopBar
         title="Media Performance"
-        subtitle="Performance de Agendamentos — Equipe Mídias e Call Center"
+        subtitle={`Performance de Agendamentos — Equipe ${TEAM_LABEL[team]}`}
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : lastUpdated}
       />
 
@@ -73,7 +81,13 @@ export function Dashboard() {
 
         {!isLoading && !isError && schedules && (
           <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <div
+              className={
+                isMidiasSociais
+                  ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7"
+                  : "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6"
+              }
+            >
               <KpiCard label="Agendamentos" value={formatNumber(totalSchedules)} accent="blue" />
               <KpiCard label="Agendamentos Atendidos" value={formatNumber(attendedSchedules)} accent="emerald" />
               <KpiCard label="Conversão" value={formatPercent(conversionRate)} accent="amber" />
@@ -92,6 +106,13 @@ export function Dashboard() {
                 accent="slate"
               />
               <KpiCard label="Faturamento dos Atendidos" value={formatCurrency(attendedRevenue)} accent="violet" />
+              {isMidiasSociais && (
+                <KpiCard
+                  label="Recebimento Antecipado"
+                  value={formatCurrency(advancePayment)}
+                  accent="emerald"
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

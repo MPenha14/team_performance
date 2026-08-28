@@ -115,7 +115,7 @@ export interface AutoMapResult {
 // (comparacao exata, sem acentos/maiusculas). Nao mapeia nada quando ha
 // ambiguidade (mais de uma conta Dr.Click com o mesmo nome).
 export async function autoMapByName(filters: QueryFilters): Promise<AutoMapResult> {
-  const data = await getSchedulesOfDay(filters);
+  const data = await getSchedulesOfDay(filters, { includeAllChannels: true });
   const existingMappings = await prisma.drClickMapping.findMany({
     select: { drclickUserId: true },
   });
@@ -188,7 +188,7 @@ export interface UnmappedDrClickUser {
 export async function listUnmappedDrClickUsers(
   filters: QueryFilters
 ): Promise<UnmappedDrClickUser[]> {
-  const data = await getSchedulesOfDay(filters);
+  const data = await getSchedulesOfDay(filters, { includeAllChannels: true });
   const existingMappings = await prisma.drClickMapping.findMany({
     select: { drclickUserId: true },
   });

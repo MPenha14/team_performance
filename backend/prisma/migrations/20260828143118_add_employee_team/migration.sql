@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "employees" ADD COLUMN     "team" TEXT NOT NULL DEFAULT 'CALL_CENTER';

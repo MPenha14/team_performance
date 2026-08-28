@@ -1,25 +1,36 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Employee, EmployeeInput } from "../types/employee";
+import { Employee, EmployeeInput, Team } from "../types/employee";
+import { TEAM_LABEL } from "../utils/team";
 
 interface EmployeeFormModalProps {
   employee?: Employee | null;
+  defaultTeam: Team;
   onClose: () => void;
   onSubmit: (input: EmployeeInput) => Promise<void>;
   isSubmitting?: boolean;
 }
 
-const EMPTY_FORM: EmployeeInput = {
-  name: "",
-  role: "",
-  email: "",
-  phone: "",
-  avatarUrl: "",
-  active: true,
-  admissionDate: "",
-};
+function emptyForm(defaultTeam: Team): EmployeeInput {
+  return {
+    name: "",
+    role: "",
+    team: defaultTeam,
+    email: "",
+    phone: "",
+    avatarUrl: "",
+    active: true,
+    admissionDate: "",
+  };
+}
 
-export function EmployeeFormModal({ employee, onClose, onSubmit, isSubmitting }: EmployeeFormModalProps) {
-  const [form, setForm] = useState<EmployeeInput>(EMPTY_FORM);
+export function EmployeeFormModal({
+  employee,
+  defaultTeam,
+  onClose,
+  onSubmit,
+  isSubmitting,
+}: EmployeeFormModalProps) {
+  const [form, setForm] = useState<EmployeeInput>(emptyForm(defaultTeam));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +38,7 @@ export function EmployeeFormModal({ employee, onClose, onSubmit, isSubmitting }:
       setForm({
         name: employee.name,
         role: employee.role,
+        team: employee.team,
         email: employee.email ?? "",
         phone: employee.phone ?? "",
         avatarUrl: employee.avatarUrl ?? "",
@@ -34,9 +46,9 @@ export function EmployeeFormModal({ employee, onClose, onSubmit, isSubmitting }:
         admissionDate: employee.admissionDate ? employee.admissionDate.slice(0, 10) : "",
       });
     } else {
-      setForm(EMPTY_FORM);
+      setForm(emptyForm(defaultTeam));
     }
-  }, [employee]);
+  }, [employee, defaultTeam]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -81,7 +93,7 @@ export function EmployeeFormModal({ employee, onClose, onSubmit, isSubmitting }:
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
-              <span className="text-xs font-medium text-slate-500">Cargo/equipe *</span>
+              <span className="text-xs font-medium text-slate-500">Cargo *</span>
               <input
                 type="text"
                 value={form.role}
@@ -90,6 +102,22 @@ export function EmployeeFormModal({ employee, onClose, onSubmit, isSubmitting }:
                 className="input"
                 required
               />
+            </label>
+
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="text-xs font-medium text-slate-500">Equipe *</span>
+              <select
+                value={form.team}
+                onChange={(e) => setForm((f) => ({ ...f, team: e.target.value as Team }))}
+                className="input"
+                required
+              >
+                {(Object.keys(TEAM_LABEL) as Team[]).map((team) => (
+                  <option key={team} value={team}>
+                    {TEAM_LABEL[team]}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">

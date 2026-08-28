@@ -6,8 +6,9 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { EmployeeFormModal } from "../components/EmployeeFormModal";
 import { useCreateEmployee, useDeleteEmployee, useEmployees, useUpdateEmployee } from "../hooks/useEmployees";
-import { Employee, EmployeeInput } from "../types/employee";
+import { Employee, EmployeeInput, Team } from "../types/employee";
 import { formatDate } from "../utils/format";
+import { TEAM_LABEL, TEAM_SLUG } from "../utils/team";
 
 function initials(name: string): string {
   return name
@@ -19,8 +20,12 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-export function Employees() {
-  const { data: employees, isLoading, isError, error, refetch } = useEmployees(true);
+interface EmployeesProps {
+  team: Team;
+}
+
+export function Employees({ team }: EmployeesProps) {
+  const { data: employees, isLoading, isError, error, refetch } = useEmployees(true, team);
 
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
@@ -79,7 +84,7 @@ export function Employees() {
 
   return (
     <>
-      <TopBar title="Colaboradores" subtitle="Cadastro da equipe de Mídias e Call Center" />
+      <TopBar title={`Colaboradores — ${TEAM_LABEL[team]}`} subtitle={`Cadastro da equipe de ${TEAM_LABEL[team]}`} />
 
       <main className="flex-1 space-y-6 p-6">
         <div className="flex items-start justify-between gap-4">
@@ -153,7 +158,7 @@ export function Employees() {
                   {filtered.map((employee) => (
                     <tr
                       key={employee.id}
-                      onClick={() => navigate(`/colaboradores/${employee.id}`)}
+                      onClick={() => navigate(`/${TEAM_SLUG[team]}/colaboradores/${employee.id}`)}
                       className="cursor-pointer hover:bg-slate-50"
                     >
                       <td className="px-4 py-3">
@@ -197,6 +202,7 @@ export function Employees() {
       {modalOpen && (
         <EmployeeFormModal
           employee={editing}
+          defaultTeam={team}
           onClose={() => setModalOpen(false)}
           onSubmit={handleSubmit}
           isSubmitting={createEmployee.isPending || updateEmployee.isPending}

@@ -1,3 +1,5 @@
+export type Team = "CALL_CENTER" | "MIDIAS_SOCIAIS";
+
 export interface DrClickMappingInfo {
   id: string;
   employeeId: string;
@@ -11,6 +13,7 @@ export interface Employee {
   id: string;
   name: string;
   role: string;
+  team: Team;
   email: string | null;
   phone: string | null;
   avatarUrl: string | null;
@@ -24,6 +27,7 @@ export interface Employee {
 export interface EmployeeInput {
   name: string;
   role: string;
+  team?: Team;
   email?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;

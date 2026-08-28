@@ -7,6 +7,8 @@ import {
   AppointmentByStatusResponse,
   SchedulesOfDayParams,
   SchedulesOfDayResponse,
+  UsersPerformanceParams,
+  UsersPerformanceResponse,
 } from "../types/drclick";
 
 // Cliente HTTP para a API do Dr.Click.
@@ -84,6 +86,35 @@ export async function fetchAppointmentsByStatus(
   try {
     const response = await client.get<AppointmentByStatusResponse>(
       "/api/reports/appointmentbystatus",
+      { params }
+    );
+
+    if (!response.data) {
+      throw new AppError("A API do Dr.Click retornou uma resposta vazia.", 502);
+    }
+
+    return response.data;
+  } catch (error) {
+    throw translateDrClickError(error);
+  }
+}
+
+// Recebimento antecipado (total_amount_billed) de UM colaborador, usado
+// pelos colaboradores de Midias Sociais/Comercial - nao existe para o
+// canal Telefonia (Call Center), que usa outros indicadores.
+export async function fetchUsersPerformance(
+  params: UsersPerformanceParams
+): Promise<UsersPerformanceResponse> {
+  if (!env.drclick.token && !env.drclick.authorization) {
+    throw new AppError(
+      "Credenciais do Dr.Click nao configuradas no servidor. Configure DRCLICK_TOKEN ou DRCLICK_AUTHORIZATION.",
+      500
+    );
+  }
+
+  try {
+    const response = await client.get<UsersPerformanceResponse>(
+      "/api/reports/users-performance",
       { params }
     );
 

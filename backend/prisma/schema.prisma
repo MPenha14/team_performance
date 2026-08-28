@@ -32,6 +32,12 @@ model Employee {
   id            String    @id @default(uuid())
   name          String
   role          String
+  // Divide o sistema em duas equipes com telas proprias (Dashboard,
+  // Performance, Colaboradores, Ranking) - "CALL_CENTER" ou
+  // "MIDIAS_SOCIAIS". Independente de "role" (cargo livre, ex: "SUPERVISAO").
+  // Default CALL_CENTER preserva o comportamento de todos os colaboradores
+  // cadastrados antes dessa divisao existir.
+  team          String    @default("CALL_CENTER")
   email         String?
   phone         String?
   avatarUrl     String?   @map("avatar_url")

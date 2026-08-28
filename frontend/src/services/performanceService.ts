@@ -8,6 +8,7 @@ import {
   PerformanceListResponse,
 } from "../types/drclick";
 import { GlobalFilters } from "../hooks/useFilters";
+import { Team } from "../types/employee";
 
 function buildParams(filters: GlobalFilters, extra: Record<string, string | number | undefined> = {}) {
   const params: Record<string, string | number> = {
@@ -34,9 +35,12 @@ function buildParams(filters: GlobalFilters, extra: Record<string, string | numb
   return params;
 }
 
-export async function fetchPerformance(filters: GlobalFilters): Promise<PerformanceListResponse> {
+export async function fetchPerformance(
+  filters: GlobalFilters,
+  team?: Team
+): Promise<PerformanceListResponse> {
   const { data } = await api.get<ApiEnvelope<PerformanceListResponse>>("/performance", {
-    params: buildParams(filters),
+    params: buildParams(filters, { team }),
   });
   return data.data;
 }

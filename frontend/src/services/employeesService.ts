@@ -1,10 +1,10 @@
 import { api } from "./api";
 import { ApiEnvelope } from "../types/drclick";
-import { Employee, EmployeeInput } from "../types/employee";
+import { Employee, EmployeeInput, Team } from "../types/employee";
 
-export async function fetchEmployees(includeInactive = true): Promise<Employee[]> {
+export async function fetchEmployees(includeInactive = true, team?: Team): Promise<Employee[]> {
   const { data } = await api.get<ApiEnvelope<Employee[]>>("/employees", {
-    params: { include_inactive: includeInactive },
+    params: { include_inactive: includeInactive, team },
   });
   return data.data;
 }

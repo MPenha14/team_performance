@@ -36,21 +36,27 @@ function resolveClinicIds(filters: QueryFilters): string[] {
   return clinicIds;
 }
 
-function cacheKey(filters: Required<QueryFilters>): string {
-  return `schedulesofday:${filters.startDate}:${filters.endDate}:${filters.clinicIds.join(",")}:${env.drclick.telefoniaChannelId}`;
+function cacheKey(filters: Required<QueryFilters>, includeAllChannels: boolean): string {
+  const channelPart = includeAllChannels ? "all-channels" : env.drclick.telefoniaChannelId;
+  return `schedulesofday:${filters.startDate}:${filters.endDate}:${filters.clinicIds.join(",")}:${channelPart}`;
 }
 
 // Busca os dados brutos do Dr.Click para o periodo/clinicas informados.
-// Sistema restrito ao canal de atendimento Telefonia (equipe de Midias e
-// Call Center) - o filtro idcanalatendimento e' aplicado aqui, no unico
-// lugar que monta a chamada para /schedulesofday, entao TODAS as telas
-// (Dashboard, Performance, Ranking, Colaboradores, Agendamentos) recebem
-// apenas os dados desse canal direto da API, sem precisar filtrar/agregar
-// depois - o payload cai de ~9MB para ~300KB por dia.
+// Sistema restrito ao canal de atendimento Telefonia (equipe de Call
+// Center) por padrao - o filtro idcanalatendimento e' aplicado aqui, no
+// unico lugar que monta a chamada para /schedulesofday, entao a maioria das
+// telas (Dashboard, Performance, Ranking, Colaboradores, Agendamentos)
+// recebem apenas os dados desse canal direto da API, sem precisar
+// filtrar/agregar depois - o payload cai de ~9MB para ~300KB por dia.
+// options.includeAllChannels ignora esse filtro (usado pela tela de
+// Mapeamento e por /api/users, que precisam enxergar TODOS os
+// colaboradores que usam o Dr.Click, inclusive equipes fora da Telefonia
+// como Midias Sociais/"Comercial" - sem isso, esses colaboradores nunca
+// aparecem como candidatos para mapear).
 // Usa cache em memoria para evitar chamadas repetidas em curto intervalo.
 export async function getSchedulesOfDay(
   filters: QueryFilters,
-  options: { bypassCache?: boolean } = {}
+  options: { bypassCache?: boolean; includeAllChannels?: boolean } = {}
 ): Promise<SchedulesOfDayData> {
   validateDate("start_date", filters.startDate);
   validateDate("end_date", filters.endDate);
@@ -63,7 +69,7 @@ export async function getSchedulesOfDay(
     clinicIds,
   };
 
-  const key = cacheKey(resolved);
+  const key = cacheKey(resolved, Boolean(options.includeAllChannels));
 
   if (!options.bypassCache) {
     const cached = getCached<SchedulesOfDayData>(key);
@@ -76,7 +82,9 @@ export async function getSchedulesOfDay(
     start_date: resolved.startDate,
     end_date: resolved.endDate,
     idclinica: clinicIds.join(","),
-    idcanalatendimento: env.drclick.telefoniaChannelId || undefined,
+    idcanalatendimento: options.includeAllChannels
+      ? undefined
+      : env.drclick.telefoniaChannelId || undefined,
   });
 
   if (!response.success) {

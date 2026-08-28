@@ -1,12 +1,22 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: DashboardIcon },
-  { to: "/performance", label: "Performance", icon: PerformanceIcon },
-  { to: "/colaboradores", label: "Colaboradores", icon: EmployeesIcon },
+const CALL_CENTER_ITEMS = [
+  { to: "/call-center", label: "Dashboard", icon: DashboardIcon },
+  { to: "/call-center/performance", label: "Performance", icon: PerformanceIcon },
+  { to: "/call-center/colaboradores", label: "Colaboradores", icon: EmployeesIcon },
+  { to: "/call-center/ranking", label: "Ranking", icon: RankingIcon },
+];
+
+const MIDIAS_SOCIAIS_ITEMS = [
+  { to: "/midias-sociais", label: "Dashboard", icon: DashboardIcon },
+  { to: "/midias-sociais/performance", label: "Performance", icon: PerformanceIcon },
+  { to: "/midias-sociais/colaboradores", label: "Colaboradores", icon: EmployeesIcon },
+  { to: "/midias-sociais/ranking", label: "Ranking", icon: RankingIcon },
+];
+
+const SHARED_ITEMS = [
   { to: "/drclick", label: "Dr.Click", icon: MappingIcon },
-  { to: "/ranking", label: "Ranking", icon: RankingIcon },
   { to: "/relatorios", label: "Relatórios", icon: ReportsIcon },
   { to: "/configuracoes", label: "Configurações", icon: SettingsIcon },
 ];
@@ -21,8 +31,8 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
-      <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-6">
+    <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white lg:flex">
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-100 px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
           MP
         </div>
@@ -30,11 +40,15 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 p-4">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        <NavSection title="Call Center" items={CALL_CENTER_ITEMS} />
+        <NavSection title="Mídias Sociais" items={MIDIAS_SOCIAIS_ITEMS} className="mt-5" />
+
+        <div className="my-4 border-t border-slate-100" />
+
+        {SHARED_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
-            end={to === "/"}
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
@@ -60,6 +74,41 @@ export function Sidebar() {
         <p className="mt-2 px-3 text-xs text-slate-400">Mais Saúde · Mídias e Call Center</p>
       </div>
     </aside>
+  );
+}
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: (props: IconProps) => JSX.Element;
+}
+
+function NavSection({ title, items, className }: { title: string; items: NavItem[]; className?: string }) {
+  return (
+    <div className={className}>
+      <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {title}
+      </p>
+      <div className="flex flex-col gap-1">
+        {items.map(({ to, label, icon: Icon }, index) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={index === 0}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-brand-50 text-brand-700"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`
+            }
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </NavLink>
+        ))}
+      </div>
+    </div>
   );
 }
 

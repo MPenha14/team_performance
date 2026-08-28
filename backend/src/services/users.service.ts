@@ -10,7 +10,7 @@ export interface DirectoryUser {
 // pela API para o periodo informado (nao ha endpoint dedicado de usuarios
 // no Dr.Click, entao a lista reflete quem teve atividade no periodo).
 export async function listUsers(filters: QueryFilters): Promise<DirectoryUser[]> {
-  const data = await getSchedulesOfDay(filters);
+  const data = await getSchedulesOfDay(filters, { includeAllChannels: true });
 
   const users: DirectoryUser[] = [];
 

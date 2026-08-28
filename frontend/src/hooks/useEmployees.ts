@@ -5,12 +5,12 @@ import {
   fetchEmployees,
   updateEmployee,
 } from "../services/employeesService";
-import { EmployeeInput } from "../types/employee";
+import { EmployeeInput, Team } from "../types/employee";
 
-export function useEmployees(includeInactive = true) {
+export function useEmployees(includeInactive = true, team?: Team) {
   return useQuery({
-    queryKey: ["employees", includeInactive],
-    queryFn: () => fetchEmployees(includeInactive),
+    queryKey: ["employees", includeInactive, team],
+    queryFn: () => fetchEmployees(includeInactive, team),
     staleTime: 60 * 1000,
   });
 }
