@@ -1,0 +1,220 @@
+// Media Performance - schema do banco de dados
+// Armazena o historico dos dados retornados pela API do Dr.Click.
+// Os valores oficiais SEMPRE vem da API; este banco serve para
+// historico, cache e relatorios, nunca para recalcular indicadores.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Clinic {
+  id        String   @id // UUID retornado pela API do Dr.Click (idclinica)
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  performanceSnapshots PerformanceSnapshot[]
+  scheduleRecords      ScheduleRecord[]
+
+  @@map("clinics")
+}
+
+// Cadastro manual de colaboradores (equipe de Midias e Call Center).
+// Independente da API do Dr.Click - e a fonte da verdade para identidade,
+// cargo, contato e foto. Os indicadores numericos continuam vindo sempre
+// da API, via DrClickMapping.
+model Employee {
+  id            String    @id @default(uuid())
+  name          String
+  role          String
+  email         String?
+  phone         String?
+  avatarUrl     String?   @map("avatar_url")
+  active        Boolean   @default(true)
+  admissionDate DateTime? @map("admission_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  mappings DrClickMapping[]
+
+  @@map("employees")
+}
+
+// Vincula um colaborador cadastrado manualmente a um (ou mais) user_id
+// retornado pela API do Dr.Click. Um colaborador pode ter mais de um
+// user_id mapeado (ex: contas duplicadas/antigas no Dr.Click).
+model DrClickMapping {
+  id            String   @id @default(uuid())
+  employeeId    String   @map("employee_id")
+  drclickUserId String   @unique @map("drclick_user_id")
+  drclickName   String   @map("drclick_name") // nome como aparece na API, para auditoria
+  drclickRole   String?  @map("drclick_role")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("drclick_mappings")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id") // user_id retornado pela API do Dr.Click
+  name      String
+  role      String? // cargo/role (ex: TELEFONIA)
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  performanceSnapshots PerformanceSnapshot[]
+  scheduleRecords      ScheduleRecord[]
+
+  @@map("users")
+}
+
+// Snapshot diario/periodo de performance de um colaborador,
+// espelhando exatamente roleStatement.users[] da API.
+model PerformanceSnapshot {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  clinicId            String?  @map("clinic_id")
+  date                DateTime @db.Date
+  startDate           DateTime @map("start_date") @db.Date
+  endDate             DateTime @map("end_date") @db.Date
+  role                String?
+  patients             Int      @default(0)
+  newPatients          Int      @default(0) @map("new_patients")
+  consultations        Int      @default(0) // schedules.cons
+  exams                Int      @default(0) // schedules.exam
+  procedures            Int      @default(0) // schedules.proc
+  returns              Int      @default(0) // schedules.ret
+  combos               Int      @default(0)
+  revenue              Decimal  @default(0) @db.Decimal(12, 2)
+  serviceorderAmount   Decimal  @default(0) @map("serviceorder_amount") @db.Decimal(12, 2)
+  serviceorderBilled   Decimal  @default(0) @map("serviceorder_billed") @db.Decimal(12, 2)
+  amountPlan           Decimal  @default(0) @map("amoun_plan") @db.Decimal(12, 2)
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [userId])
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  // clinicId fica fora da chave unica: a API agrega multiplas clinicas
+  // em uma unica resposta, entao o snapshot e por usuario+periodo.
+  @@unique([userId, startDate, endDate], name: "uniq_snapshot_period")
+  @@index([date])
+  @@map("performance_snapshots")
+}
+
+// Registro individual de agendamento, espelhando data.statement da API.
+model ScheduleRecord {
+  id                String   @id @default(uuid())
+  externalId        String?  @map("external_id") // idordemservico ou chave unica da API, quando disponivel
+  userId            String?  @map("user_id")
+  clinicId          String?  @map("clinic_id")
+  status            String
+  statusText        String?  @map("status_text")
+  creationDate      DateTime? @map("creation_date")
+  scheduleDate      DateTime  @map("schedule_date")
+  patient           String
+  professional      String?
+  category          String?
+  service           String?
+  convenio          String?
+  value             Decimal  @default(0) @db.Decimal(12, 2)
+  healthPlanValue   Decimal  @default(0) @map("health_plan_value") @db.Decimal(12, 2)
+  idordemservico    String?  @map("idordemservico")
+  syncBatchId       String?  @map("sync_batch_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user   User?   @relation(fields: [userId], references: [userId])
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  @@unique([patient, scheduleDate, service, professional], name: "uniq_schedule_dedupe")
+  @@index([scheduleDate])
+  @@index([status])
+  @@map("schedule_records")
+}
+
+// Resumo de canal de atendimento por periodo/clinica (serviceChannelSummary)
+model ServiceChannel {
+  id        String   @id @default(uuid())
+  clinicId  String?  @map("clinic_id")
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  name      String
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([startDate, endDate, name], name: "uniq_channel_period")
+  @@map("service_channels")
+}
+
+// Resumo de origem de atendimento por periodo/clinica (serviceOriginSummary)
+model ServiceOrigin {
+  id        String   @id @default(uuid())
+  clinicId  String?  @map("clinic_id")
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  name      String
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([startDate, endDate, name], name: "uniq_origin_period")
+  @@map("service_origins")
+}
+
+// Resumo diario exato, capturado direto de summary.mainSummary da API no
+// momento da sincronizacao (sempre um unico dia: startDate === endDate).
+// Serve como "selo de dia sincronizado": quando TODOS os dias de um periodo
+// consultado tem uma linha aqui (com o mesmo clinicIds), o dashboard pode
+// somar essas linhas em vez de chamar a API ao vivo - sem recalcular nada,
+// apenas somando totais diarios que a propria API ja retornou.
+// E' sobrescrita (upsert) a cada nova sincronizacao do mesmo dia, entao
+// sempre reflete o dado mais recente conhecido para aquele dia.
+model DailyMetrics {
+  id                String   @id @default(uuid())
+  date              DateTime @db.Date
+  clinicIds         String   @map("clinic_ids") // lista separada por virgula, para so usar cache quando o escopo bate
+  totalSchedules    Int      @default(0) @map("total_schedules") // statement.length do dia
+  attendedSchedules Int      @default(0) @map("attended_schedules") // registros com status "atendido"
+  consultations     Int      @default(0)
+  exams             Int      @default(0)
+  procedures        Int      @default(0)
+  returns           Int      @default(0)
+  patients          Int      @default(0)
+  newPatients       Int      @default(0) @map("new_patients")
+  revenue           Decimal  @default(0) @db.Decimal(12, 2)
+  combos            Int      @default(0)
+  // Contagem de agendamentos por status (ex: {"atendido":40,"cancelado":2}),
+  // capturada do statement do dia. Usada para o grafico "Status de
+  // Atendimento" do Dashboard tambem funcionar quando servido do cache.
+  statusBreakdown   Json     @default("{}") @map("status_breakdown")
+  syncedAt          DateTime @default(now()) @map("synced_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, clinicIds], name: "uniq_daily_metrics")
+  @@map("daily_metrics")
+}
+
+// Historico de execucoes de sincronizacao (uma linha por execucao, nao por
+// periodo) para a tela "Logs de Sincronizacao".
+model SyncLog {
+  id            String    @id @default(uuid())
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime  @map("end_date") @db.Date
+  clinicIds     String    @map("clinic_ids") // lista separada por virgula, mesma ordem da requisicao
+  status        String    @default("success") // success | error
+  message       String?
+  recordsSynced Int       @default(0) @map("records_synced")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([startedAt])
+  @@map("sync_logs")
+}
