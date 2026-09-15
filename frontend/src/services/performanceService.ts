@@ -91,6 +91,11 @@ export async function fetchClinics(): Promise<ClinicInfo[]> {
   return data.data;
 }
 
+export async function updateClinicName(id: string, name: string): Promise<ClinicInfo> {
+  const { data } = await api.put<ApiEnvelope<ClinicInfo>>(`/clinics/${id}`, { name });
+  return data.data;
+}
+
 export async function triggerSync(filters: GlobalFilters): Promise<void> {
   await api.post("/sync", {
     start_date: filters.startDate,

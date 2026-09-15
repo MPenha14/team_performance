@@ -32,6 +32,12 @@ export interface ServiceOriginSummaryItem {
   count: number;
 }
 
+export interface ClinicBreakdownItem {
+  clinicId: string;
+  name: string;
+  count: number;
+}
+
 export interface Summary {
   mainSummary: MainSummary;
   serviceChannelSummary: ServiceChannelSummaryItem[];

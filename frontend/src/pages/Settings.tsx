@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TopBar } from "../components/TopBar";
 import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { api } from "../services/api";
-import { useClinics } from "../hooks/useUsersAndClinics";
+import { useClinics, useUpdateClinicName } from "../hooks/useUsersAndClinics";
+import { ClinicInfo } from "../types/drclick";
 
 interface HealthData {
   status: string;
@@ -53,13 +55,15 @@ export function Settings() {
             </div>
 
             <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
-              <h3 className="text-sm font-semibold text-slate-800">Clínicas</h3>
+              <h3 className="text-sm font-semibold text-slate-800">Clínicas / Unidades</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                A API do Dr.Click não retorna o nome das unidades — defina aqui o nome real de
+                cada uma. Enquanto não definido, aparece como "Clínica N" (ex.: no gráfico
+                "Agendamentos por Unidade" do Dashboard).
+              </p>
               <ul className="mt-4 space-y-2 text-sm text-slate-600">
                 {(clinics ?? []).map((clinic) => (
-                  <li key={clinic.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                    <span>{clinic.name}</span>
-                    <span className="font-mono text-xs text-slate-400">{clinic.id}</span>
-                  </li>
+                  <ClinicNameRow key={clinic.id} clinic={clinic} />
                 ))}
               </ul>
             </div>
@@ -76,6 +80,45 @@ export function Settings() {
         )}
       </main>
     </>
+  );
+}
+
+function ClinicNameRow({ clinic }: { clinic: ClinicInfo }) {
+  const updateName = useUpdateClinicName();
+  const [value, setValue] = useState(clinic.name);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setValue(clinic.name);
+  }, [clinic.name]);
+
+  const handleSave = () => {
+    if (!value.trim() || value === clinic.name) return;
+    updateName.mutate(
+      { id: clinic.id, name: value.trim() },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 1500);
+        },
+      }
+    );
+  };
+
+  return (
+    <li className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => e.key === "Enter" && handleSave()}
+        className="input flex-1 py-1.5 text-sm"
+      />
+      <span className="shrink-0 font-mono text-xs text-slate-400">{clinic.id.slice(0, 8)}…</span>
+      {updateName.isPending && <span className="shrink-0 text-xs text-slate-400">Salvando…</span>}
+      {saved && <span className="shrink-0 text-xs text-emerald-600">Salvo ✓</span>}
+    </li>
   );
 }
 

@@ -7,6 +7,7 @@ import { ErrorState } from "../components/ErrorState";
 import { EmptyState } from "../components/EmptyState";
 import { StatusChart } from "../charts/StatusChart";
 import { AppointmentTypeChart } from "../charts/AppointmentTypeChart";
+import { ClinicBreakdownChart } from "../charts/ClinicBreakdownChart";
 import { useFilters } from "../hooks/useFilters";
 import { useDashboardSummary } from "../hooks/useDashboard";
 import { useSync } from "../hooks/useSync";
@@ -123,6 +124,12 @@ export function Dashboard({ team }: DashboardProps) {
               <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-slate-900/5">
                 <h2 className="mb-4 text-sm font-semibold text-slate-700">Tipos de Atendimento</h2>
                 <AppointmentTypeChart schedules={schedules} />
+              </div>
+              <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-slate-900/5 lg:col-span-2">
+                <h2 className="mb-4 text-sm font-semibold text-slate-700">
+                  Agendamentos por Unidade
+                </h2>
+                <ClinicBreakdownChart data={data.clinicBreakdown} />
               </div>
             </div>
           </>

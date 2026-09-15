@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { ApiEnvelope, ScheduleSummary, ServiceChannelSummaryItem } from "../types/drclick";
+import { ApiEnvelope, ClinicBreakdownItem, ScheduleSummary, ServiceChannelSummaryItem } from "../types/drclick";
 import { GlobalFilters } from "../hooks/useFilters";
 import { Team } from "../types/employee";
 
@@ -9,6 +9,7 @@ export interface DashboardSummary {
   attendedRevenue: number;
   statusSummary: ServiceChannelSummaryItem[];
   advancePayment: number;
+  clinicBreakdown: ClinicBreakdownItem[];
 }
 
 // Soma os colaboradores cadastrados/ativos da equipe informada (CALL_CENTER
