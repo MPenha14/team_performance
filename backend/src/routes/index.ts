@@ -9,7 +9,7 @@ import {
 } from "../controllers/performance.controller";
 import { getSchedules } from "../controllers/schedules.controller";
 import { getUsers } from "../controllers/users.controller";
-import { getClinics } from "../controllers/clinics.controller";
+import { getClinics, putClinic } from "../controllers/clinics.controller";
 import { getSyncLogs, postSync } from "../controllers/sync.controller";
 import { getHealth } from "../controllers/health.controller";
 import { getDashboard } from "../controllers/dashboard.controller";
@@ -45,7 +45,8 @@ router.get("/schedules", asyncHandler(getSchedules));
 
 router.get("/users", asyncHandler(getUsers));
 
-router.get("/clinics", getClinics);
+router.get("/clinics", asyncHandler(getClinics));
+router.put("/clinics/:id", asyncHandler(putClinic));
 
 router.post("/sync", asyncHandler(postSync));
 router.get("/sync/logs", asyncHandler(getSyncLogs));

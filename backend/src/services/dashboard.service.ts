@@ -1,6 +1,7 @@
 import { prisma } from "../utils/prisma";
 import { getStatusBreakdowns } from "./attendance.service";
 import { getAdvancePayments } from "./advancePayment.service";
+import { ClinicBreakdownItem, getClinicBreakdown } from "./clinicBreakdown.service";
 import { ScheduleSummary, ServiceChannelSummaryItem } from "../types/drclick";
 import { getSchedulesOfDayForUsers, QueryFilters } from "./drclickQuery.service";
 
@@ -16,6 +17,11 @@ export interface DashboardSummary {
   // colaboradores - so calculado quando team === "MIDIAS_SOCIAIS" (0 para
   // Call Center, que nao usa esse indicador).
   advancePayment: number;
+  // Total de agendamentos por unidade/clinica no periodo, somando so os
+  // colaboradores cadastrados/ativos desta equipe (mesmo escopo do card
+  // "Agendamentos" acima) - por isso a soma das unidades bate com esse
+  // card (ver clinicBreakdown.service.ts).
+  clinicBreakdown: ClinicBreakdownItem[];
 }
 
 // O Dashboard mostra a soma dos colaboradores CADASTRADOS e ativos no Media
@@ -34,10 +40,11 @@ export async function getDashboardSummary(
   });
   const userIds = mappings.map((m) => m.drclickUserId);
 
-  const [userTotals, breakdowns, advanceByUser] = await Promise.all([
+  const [userTotals, breakdowns, advanceByUser, clinicBreakdown] = await Promise.all([
     getSchedulesOfDayForUsers(userIds, filters),
     getStatusBreakdowns(userIds, filters),
     team === "MIDIAS_SOCIAIS" ? getAdvancePayments(userIds, filters) : Promise.resolve(new Map<string, number>()),
+    getClinicBreakdown(filters, userIds),
   ]);
 
   const schedules: ScheduleSummary = { cons: 0, exam: 0, proc: 0, ret: 0 };
@@ -68,5 +75,12 @@ export async function getDashboardSummary(
 
   const advancePayment = Array.from(advanceByUser.values()).reduce((sum, v) => sum + v, 0);
 
-  return { schedules, statusSummary, attendedSchedules, attendedRevenue, advancePayment };
+  return {
+    schedules,
+    statusSummary,
+    attendedSchedules,
+    attendedRevenue,
+    advancePayment,
+    clinicBreakdown,
+  };
 }
