@@ -26,6 +26,12 @@ import {
   postAutoMap,
   putEmployeeMapping,
 } from "../controllers/mapping.controller";
+import {
+  getMetricByMonth,
+  getMetricsHistory,
+  putMetricByMonth,
+} from "../controllers/callCenterMetrics.controller";
+import { getScoresForMonth, putScoreByEmployeeMonth } from "../controllers/employeeScores.controller";
 
 export const router = Router();
 
@@ -61,3 +67,10 @@ router.put("/employees/:id/mapping", asyncHandler(putEmployeeMapping));
 router.get("/mappings", asyncHandler(getMappings));
 router.delete("/mappings/:id", asyncHandler(deleteMappingById));
 router.post("/mappings/auto-map", asyncHandler(postAutoMap));
+
+router.get("/call-center-metrics", asyncHandler(getMetricsHistory));
+router.get("/call-center-metrics/:month", asyncHandler(getMetricByMonth));
+router.put("/call-center-metrics/:month", asyncHandler(putMetricByMonth));
+
+router.get("/employee-scores", asyncHandler(getScoresForMonth));
+router.put("/employee-scores/:employeeId/:month", asyncHandler(putScoreByEmployeeMonth));

@@ -6,6 +6,7 @@ const CALL_CENTER_ITEMS = [
   { to: "/call-center/performance", label: "Performance", icon: PerformanceIcon },
   { to: "/call-center/colaboradores", label: "Colaboradores", icon: EmployeesIcon },
   { to: "/call-center/ranking", label: "Ranking", icon: RankingIcon },
+  { to: "/call-center/indicadores-manuais", label: "Indicadores Manuais", icon: ManualEntryIcon },
 ];
 
 const MIDIAS_SOCIAIS_ITEMS = [
@@ -139,6 +140,14 @@ function MappingIcon({ className }: IconProps) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+    </svg>
+  );
+}
+function ManualEntryIcon({ className }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487 18.549 2.8a2.062 2.062 0 0 1 2.917 2.917L9.75 17.433l-4.125 1.125 1.125-4.125L16.862 4.487Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 15.75v3.75a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 19.5V7.5a2.25 2.25 0 0 1 2.25-2.25h3.75" />
     </svg>
   );
 }

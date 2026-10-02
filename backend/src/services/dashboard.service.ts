@@ -2,6 +2,7 @@ import { prisma } from "../utils/prisma";
 import { getStatusBreakdowns } from "./attendance.service";
 import { getAdvancePayments } from "./advancePayment.service";
 import { ClinicBreakdownItem, getClinicBreakdown } from "./clinicBreakdown.service";
+import { getManualIndicatorsSummary, ManualIndicatorsSummary } from "./callCenterMetrics.service";
 import { ScheduleSummary, ServiceChannelSummaryItem } from "../types/drclick";
 import { getSchedulesOfDayForUsers, QueryFilters } from "./drclickQuery.service";
 
@@ -22,6 +23,10 @@ export interface DashboardSummary {
   // "Agendamentos" acima) - por isso a soma das unidades bate com esse
   // card (ver clinicBreakdown.service.ts).
   clinicBreakdown: ClinicBreakdownItem[];
+  // Chamadas ofertadas/atendidas, Nivel de Servico e Nota Voxia, lancados
+  // manualmente (nao vem do Dr.Click) - so calculado para team ===
+  // "CALL_CENTER" (null para Midias Sociais, que nao usa esses indicadores).
+  manualIndicators: ManualIndicatorsSummary | null;
 }
 
 // O Dashboard mostra a soma dos colaboradores CADASTRADOS e ativos no Media
@@ -40,11 +45,12 @@ export async function getDashboardSummary(
   });
   const userIds = mappings.map((m) => m.drclickUserId);
 
-  const [userTotals, breakdowns, advanceByUser, clinicBreakdown] = await Promise.all([
+  const [userTotals, breakdowns, advanceByUser, clinicBreakdown, manualIndicators] = await Promise.all([
     getSchedulesOfDayForUsers(userIds, filters),
     getStatusBreakdowns(userIds, filters),
     team === "MIDIAS_SOCIAIS" ? getAdvancePayments(userIds, filters) : Promise.resolve(new Map<string, number>()),
     getClinicBreakdown(filters, userIds),
+    team === "CALL_CENTER" ? getManualIndicatorsSummary(filters.startDate, filters.endDate) : Promise.resolve(null),
   ]);
 
   const schedules: ScheduleSummary = { cons: 0, exam: 0, proc: 0, ret: 0 };
@@ -82,5 +88,6 @@ export async function getDashboardSummary(
     attendedRevenue,
     advancePayment,
     clinicBreakdown,
+    manualIndicators,
   };
 }

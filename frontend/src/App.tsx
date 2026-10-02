@@ -8,6 +8,7 @@ import { EmployeeDetail } from "./pages/EmployeeDetail";
 import { DrClickIntegration } from "./pages/DrClickIntegration";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
+import { ManualIndicators } from "./pages/ManualIndicators";
 import { TVDashboard } from "./pages/TVDashboard";
 import { Login } from "./pages/Login";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -40,6 +41,7 @@ export function App() {
         <Route path="/call-center/colaboradores" element={<Employees team="CALL_CENTER" />} />
         <Route path="/call-center/colaboradores/:employeeId" element={<EmployeeDetail />} />
         <Route path="/call-center/ranking" element={<Ranking team="CALL_CENTER" />} />
+        <Route path="/call-center/indicadores-manuais" element={<ManualIndicators />} />
 
         <Route path="/midias-sociais" element={<Dashboard team="MIDIAS_SOCIAIS" />} />
         <Route path="/midias-sociais/performance" element={<Performance team="MIDIAS_SOCIAIS" />} />

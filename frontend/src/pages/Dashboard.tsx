@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { TopBar } from "../components/TopBar";
 import { DateRangeBar } from "../components/DateRangeBar";
 import { KpiCard } from "../components/KpiCard";
@@ -53,6 +54,7 @@ export function Dashboard({ team }: DashboardProps) {
   const canceledRevenue = canceledStatus?.revenue ?? 0;
   const advancePayment = data?.advancePayment ?? 0;
   const isMidiasSociais = team === "MIDIAS_SOCIAIS";
+  const manualIndicators = data?.manualIndicators;
 
   return (
     <>
@@ -115,6 +117,53 @@ export function Dashboard({ team }: DashboardProps) {
                 />
               )}
             </div>
+
+            {!isMidiasSociais && manualIndicators && (
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-700"></h2>
+                  <Link
+                    to="/call-center/indicadores-manuais"
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    Lançar valores →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <KpiCard
+                    label="Chamadas Ofertadas"
+                    value={formatNumber(manualIndicators.offeredCalls)}
+                    accent="blue"
+                  />
+                  <KpiCard
+                    label="Chamadas Atendidas"
+                    value={formatNumber(manualIndicators.answeredCalls)}
+                    accent="emerald"
+                  />
+                  <KpiCard
+                    label="Nível de Serviço (NS)"
+                    value={
+                      manualIndicators.serviceLevel !== null
+                        ? formatPercent(manualIndicators.serviceLevel)
+                        : "—"
+                    }
+                    accent="amber"
+                  />
+                  <KpiCard
+                    label="Nota Voxia"
+                    value={
+                      manualIndicators.voxiaScore !== null
+                        ? manualIndicators.voxiaScore.toLocaleString("pt-BR", {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          })
+                        : "—"
+                    }
+                    accent="violet"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-2xl bg-white p-5 shadow-card ring-1 ring-slate-900/5">

@@ -96,16 +96,10 @@ DRCLICK_CLINIC_IDS=12706efb-9be9-47d6-a997-7a910c57ef4a,3d55137b-221b-4e98-bf8f-
 
 SYNC_CRON_ENABLED=true
 SYNC_CRON_EXPRESSION=*/15 * * * *
-
-ADMIN_EMAIL=admin@clinica.com
-ADMIN_PASSWORD=admin123
-JWT_SECRET=COLOCAR_UM_SEGREDO_ALEATORIO_AQUI
 ```
 
-> **IMPORTANTE:** `DRCLICK_TOKEN`/`DRCLICK_AUTHORIZATION`/`JWT_SECRET`/
-> `ADMIN_PASSWORD` nunca devem ir para o frontend, nem ser commitados. O
-> `.env` já está no `.gitignore`. Gere um `JWT_SECRET` próprio em produção
-> (ex.: `openssl rand -hex 48`) — não reaproveite o valor de exemplo.
+> **IMPORTANTE:** `DRCLICK_TOKEN`/`DRCLICK_AUTHORIZATION` nunca devem ir para o
+> frontend, nem ser commitados. O `.env` já está no `.gitignore`.
 
 ### Frontend (`frontend/.env`)
 
@@ -121,34 +115,7 @@ VITE_API_URL=http://localhost:3333/api
 O frontend só conhece a URL do **backend interno** — nunca a URL nem o token
 do Dr.Click.
 
-## 3. Login (autenticação)
-
-O sistema exige login para acessar qualquer tela. As credenciais são fixas
-(um único usuário administrador), configuradas via `ADMIN_EMAIL` e
-`ADMIN_PASSWORD` no `backend/.env` — por padrão:
-
-- **E-mail:** `admin@clinica.com`
-- **Senha:** `admin123`
-
-Como funciona:
-
-- `POST /api/auth/login` recebe `{ email, senha }`, compara com
-  `ADMIN_EMAIL`/`ADMIN_PASSWORD` (comparação em tempo constante, via
-  `crypto.timingSafeEqual`, para não vazar por timing) e retorna um token
-  JWT válido por 12h (assinado com `JWT_SECRET`).
-- Esse é o **único** endpoint público — todas as outras rotas em `/api/*`
-  (exceto `/health`) exigem o header `Authorization: Bearer <token>`,
-  verificado pelo middleware `requireAuth` (`middleware/auth.middleware.ts`).
-- O frontend guarda o token no `localStorage` do navegador e o anexa
-  automaticamente em toda chamada (`services/api.ts`). Se o backend
-  responder 401 (token ausente/expirado), o frontend limpa o token e
-  redireciona para `/login`.
-- Não há cadastro de múltiplos usuários nem recuperação de senha — é um
-  único login administrativo, adequado ao uso interno da equipe. Para
-  trocar a senha, basta alterar `ADMIN_PASSWORD` no `.env` e reiniciar o
-  backend.
-
-## 4. Como configurar o PostgreSQL
+## 3. Como configurar o PostgreSQL
 
 Crie o banco (localmente ou em um serviço gerenciado, como Railway) garantindo
 encoding **UTF8** (nomes com acentos vêm diretamente da API do Dr.Click):
@@ -160,7 +127,7 @@ CREATE DATABASE media_performance WITH ENCODING 'UTF8';
 Ajuste `DATABASE_URL` no `backend/.env` com usuário, senha, host, porta e
 nome do banco corretos.
 
-## 5. Como executar o Prisma
+## 4. Como executar o Prisma
 
 ```bash
 cd backend
@@ -181,9 +148,9 @@ npm run prisma:studio
 Tabelas criadas: `employees`, `drclick_mappings`, `users`, `clinics`,
 `performance_snapshots`, `schedule_records`, `service_channels`,
 `service_origins`, `sync_logs`, `daily_metrics` (cache de dias já
-sincronizados, ver seção 14).
+sincronizados, ver seção 13).
 
-## 6. Como executar o backend
+## 5. Como executar o backend
 
 ```bash
 cd backend
@@ -191,9 +158,9 @@ npm run dev
 ```
 
 O servidor sobe em `http://localhost:3333`. Endpoints internos disponíveis
-em `/api/*` (ver seção 10).
+em `/api/*` (ver seção 9).
 
-## 7. Como executar o frontend
+## 6. Como executar o frontend
 
 ```bash
 cd frontend
@@ -202,7 +169,7 @@ npm run dev
 
 A aplicação abre em `http://localhost:5173`.
 
-## 8. Cadastro de colaboradores e mapeamento com o Dr.Click
+## 7. Cadastro de colaboradores e mapeamento com o Dr.Click
 
 A API do Dr.Click não possui um cadastro fixo de colaboradores — cada consulta
 a `/api/reports/schedulesofday` retorna um `roleStatement` com todos os
@@ -242,7 +209,7 @@ mapeados — contas de bots/sistema do Dr.Click (`CHATBOT`, `Agendamento Web`,
 `Aplicativo`, etc.) nunca aparecem como "colaborador", pois nunca são
 cadastradas manualmente.
 
-## 9. Como sincronizar os dados
+## 8. Como sincronizar os dados
 
 Existem três formas de sincronizar o histórico com o Dr.Click:
 
@@ -262,13 +229,12 @@ A sincronização usa `upsert` com chaves únicas (`user_id` + período,
 paciente + data + serviço + profissional, etc.) para nunca duplicar
 registros.
 
-## 10. Endpoints internos da API
+## 9. Endpoints internos da API
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/health` | Status do backend, banco e configuração (público, sem login) |
-| POST | `/api/auth/login` | Login (`{ email, password }` → `{ token }`), único endpoint público além de `/health` — ver seção 3 |
-| GET | `/api/dashboard` | Resumo do Dashboard, somando os colaboradores cadastrados/ativos (ver seção 13) |
+| GET | `/api/health` | Status do backend, banco e configuração |
+| GET | `/api/dashboard` | Resumo do Dashboard, somando os colaboradores cadastrados/ativos (ver seção 12) |
 | GET | `/api/performance` | Performance de todos os colaboradores cadastrados/mapeados (filtros: `start_date`, `end_date`, `idclinica`, `role`, `employee_id`) |
 | GET | `/api/performance/:employeeId` | Performance individual de um colaborador (soma as contas mapeadas) |
 | GET | `/api/performance/:employeeId/history` | Histórico (evolução) a partir dos snapshots sincronizados |
@@ -288,14 +254,14 @@ registros.
 O frontend consome exclusivamente esses endpoints — nunca a API do Dr.Click
 diretamente.
 
-## 11. Modo TV / Fullscreen
+## 10. Modo TV / Fullscreen
 
 Acessível em `/tv` (ou pelo botão "Modo TV" no topo do dashboard). Layout sem
 sidebar, cards e fontes ampliadas, atualização automática a cada 15 minutos e
 suporte a tela cheia do navegador — pensado para exibição em televisões
 corporativas.
 
-## 12. Exportação de relatórios
+## 11. Exportação de relatórios
 
 Na tela **Relatórios**, é possível exportar em CSV (compatível com Excel):
 
@@ -304,7 +270,7 @@ Na tela **Relatórios**, é possível exportar em CSV (compatível com Excel):
   faturamento).
 - Detalhamento completo de agendamentos do período selecionado.
 
-## 13. Regra de ouro dos dados
+## 12. Regra de ouro dos dados
 
 - Os valores de `schedules.cons/exam/proc/ret`, `patients`, `newPatients`,
   `revenue`, `combos` etc. são exibidos **exatamente** como retornados pela
@@ -342,7 +308,7 @@ conversão é exibida como `—` em vez de `0%`, que seria enganoso.
 ### Sistema restrito aos colaboradores cadastrados (filtro por pessoa, não por canal)
 
 Este sistema mostra os indicadores de **exatamente** os colaboradores
-cadastrados e ativos no Media Performance (equipe de Mídias/Call Center) —
+cadastrados e ativos no Media Performance (equipe de z/Call Center) —
 nem mais, nem menos. A forma como isso é obtido mudou ao longo do projeto:
 
 - **Antes:** filtrava a API pelo canal de atendimento **Telefonia**
@@ -389,7 +355,7 @@ enxergar além dos colaboradores já cadastrados (para poder listar/mapear
 gente nova, ou exportar tudo do canal), então o filtro por colaborador não
 se aplica a elas.
 
-## 14. Tratamento de erros
+## 13. Tratamento de erros
 
 O backend traduz erros da API do Dr.Click em mensagens amigáveis (sem nunca
 expor o token): autenticação (401/403), indisponibilidade, timeout, respostas
@@ -426,54 +392,31 @@ existindo e sendo alimentado, usado apenas pela aba **Dr.Click → Logs de
 Sincronização** e pelo histórico de evolução
 (`/api/performance/:id/history`, `performance_snapshots`).
 
-## 15. Como fazer deploy
-
-**Deploy atual em produção:**
-
-- Frontend (Vercel): https://team-performance-sable.vercel.app
-- Backend (Railway): https://backend-production-69d9.up.railway.app
-- Projeto Railway: `impartial-optimism` (mesmo projeto que já hospedava o
-  Postgres usado em desenvolvimento — os dados/histórico sincronizados
-  foram reaproveitados, não é um banco novo).
+## 14. Como fazer deploy
 
 ### Frontend → Vercel
 
 1. Importe o repositório na Vercel apontando o **Root Directory** para
-   `frontend` (o Vercel detecta automaticamente Vite: build `vite build`,
-   output `dist`).
-2. Configure a variável de ambiente `VITE_API_URL` apontando para a URL
-   pública do backend + `/api` (ex.:
-   `https://backend-production-69d9.up.railway.app/api`).
+   `frontend`.
+2. Build command: `npm run build` — Output directory: `dist`.
+3. Configure a variável de ambiente `VITE_API_URL` apontando para a URL
+   pública do backend (ex.: `https://seu-backend.up.railway.app/api`).
 
 ### Backend + PostgreSQL → Railway
 
-1. Provisione um serviço **PostgreSQL** no projeto Railway (ou reaproveite
-   um existente).
-2. Adicione um serviço a partir do repositório GitHub, com **Root
-   Directory** `backend`.
+1. Crie um novo projeto no Railway e provisione um serviço **PostgreSQL**.
+2. Adicione um serviço a partir do repositório, com **Root Directory**
+   `backend`.
 3. Build command: `npm install && npm run prisma:generate && npm run build`.
    Start command: `npm run prisma:deploy && npm start`.
-4. Configure as variáveis de ambiente do backend:
-   - `DATABASE_URL` → referência ao serviço Postgres do próprio projeto
-     (`${{Postgres.DATABASE_URL}}`), preenchida automaticamente.
-   - `DRCLICK_API_URL`, `DRCLICK_TOKEN`/`DRCLICK_AUTHORIZATION`,
-     `DRCLICK_CLINIC_IDS`, `DRCLICK_TELEFONIA_CHANNEL_ID` — mesmos valores
-     usados em desenvolvimento.
-   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — credenciais de login do sistema.
-   - `JWT_SECRET` — **gere um valor novo e diferente do usado em
-     desenvolvimento** (ex.: `openssl rand -hex 48`).
-   - `FRONTEND_URL` — a URL de produção do Vercel (necessário para o CORS
-     liberar o frontend a chamar o backend).
-   - `NODE_ENV=production`, `PORT=3333`, `SYNC_CRON_ENABLED=true`,
-     `SYNC_CRON_EXPRESSION=*/15 * * * *`.
-5. Gere um domínio público para o serviço (Networking → Generate Domain).
-6. Após o deploy, acesse `/api/health` para confirmar que o banco e as
+4. Configure as variáveis de ambiente do backend (`DATABASE_URL` é
+   preenchida automaticamente pelo Railway ao linkar o Postgres;
+   configure as demais — `DRCLICK_TOKEN`, `DRCLICK_AUTHORIZATION`,
+   `DRCLICK_CLINIC_IDS`, `FRONTEND_URL` com a URL da Vercel, etc.).
+5. Após o deploy, acesse `/api/health` para confirmar que o banco e as
    credenciais do Dr.Click estão configurados corretamente.
 
-> Se o domínio do Vercel mudar (ex.: domínio customizado), atualize
-> `FRONTEND_URL` no Railway — senão o CORS passa a bloquear o frontend.
-
-## 16. Validação com dados reais
+## 15. Validação com dados reais
 
 A integração foi validada contra o endpoint real
 `GET /api/reports/schedulesofday` para o período de 18/08/2026. A colaboradora

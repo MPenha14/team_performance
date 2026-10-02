@@ -47,6 +47,7 @@ model Employee {
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   mappings DrClickMapping[]
+  scores   CallCenterEmployeeScore[]
 
   @@map("employees")
 }
@@ -205,6 +206,43 @@ model DailyMetrics {
 
   @@unique([date, clinicIds], name: "uniq_daily_metrics")
   @@map("daily_metrics")
+}
+
+// Indicadores do Call Center preenchidos manualmente (nao vem da API do
+// Dr.Click): chamadas ofertadas/atendidas e nota de qualidade (Voxia), um
+// registro por MES (o usuario seleciona o mes e lanca os valores daquele
+// mes inteiro - nao e lancamento diario). "month" e sempre o dia 1 do mes
+// (ex: 2026-10-01 representa Outubro/2026). O Nivel de Servico (NS) nao e
+// armazenado - e sempre calculado a partir de chamadas atendidas / chamadas
+// ofertadas.
+model CallCenterMonthlyMetric {
+  id            String   @id @default(uuid())
+  month         DateTime @unique @db.Date
+  offeredCalls  Int      @default(0) @map("offered_calls")
+  answeredCalls Int      @default(0) @map("answered_calls")
+  voxiaScore    Decimal? @map("voxia_score") @db.Decimal(5, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("call_center_monthly_metrics")
+}
+
+// Nota manual lancada por colaborador do Call Center, por mes - lancamento
+// individual e independente do indicador agregado do time
+// (CallCenterMonthlyMetric.voxiaScore); nao afeta aquele calculo nem o
+// Dashboard.
+model CallCenterEmployeeScore {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  month      DateTime @db.Date
+  score      Decimal  @db.Decimal(5, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month], name: "uniq_employee_score_month")
+  @@map("call_center_employee_scores")
 }
 
 // Historico de execucoes de sincronizacao (uma linha por execucao, nao por

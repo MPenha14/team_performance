@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { ApiEnvelope, ClinicBreakdownItem, ScheduleSummary, ServiceChannelSummaryItem } from "../types/drclick";
+import { ManualIndicatorsSummary } from "../types/callCenterMetrics";
 import { GlobalFilters } from "../hooks/useFilters";
 import { Team } from "../types/employee";
 
@@ -10,6 +11,7 @@ export interface DashboardSummary {
   statusSummary: ServiceChannelSummaryItem[];
   advancePayment: number;
   clinicBreakdown: ClinicBreakdownItem[];
+  manualIndicators: ManualIndicatorsSummary | null;
 }
 
 // Soma os colaboradores cadastrados/ativos da equipe informada (CALL_CENTER
