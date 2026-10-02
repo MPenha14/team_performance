@@ -182,11 +182,11 @@ export function ManualIndicators() {
   );
 }
 
-// Nota Voxia lancada individualmente por colaborador, por mes - secao
-// separada dos indicadores do time acima, sem afetar aquele calculo nem o
-// Dashboard. Lista todos os colaboradores do Call Center de uma vez, cada
-// um com seu proprio campo, salvando linha a linha (igual aos nomes de
-// clinica em Configurações).
+// Chamadas Atendidas e Nota Voxia lancadas individualmente por colaborador,
+// por mes - secao separada dos indicadores do time acima, sem afetar aquele
+// calculo nem o Dashboard. Lista todos os colaboradores do Call Center de
+// uma vez, cada um com seus proprios campos, salvando linha a linha (igual
+// aos nomes de clinica em Configurações).
 function EmployeeScoreSection() {
   const [month, setMonth] = useState(currentMonthIso());
   const { data: scores, isLoading } = useScoresForMonth(month);
@@ -195,7 +195,7 @@ function EmployeeScoreSection() {
     <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">Nota Voxia por Colaborador</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Indicadores por Colaborador</h2>
           <p className="mt-1 text-xs text-slate-500">
             Lançamento individual, por colaborador e por mês — não altera os indicadores do time
             acima.
@@ -211,10 +211,11 @@ function EmployeeScoreSection() {
         <LoadingState />
       ) : (
         <div className="mt-5 overflow-x-auto rounded-xl ring-1 ring-slate-100">
-          <table className="w-full min-w-[480px] text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2.5">Colaborador</th>
+                <th className="px-4 py-2.5">Chamadas Atendidas</th>
                 <th className="px-4 py-2.5">Nota Voxia</th>
               </tr>
             </thead>
@@ -232,17 +233,22 @@ function EmployeeScoreSection() {
 
 function EmployeeScoreRow({ month, row }: { month: string; row: EmployeeScore }) {
   const updateScore = useUpdateEmployeeScore();
-  const [value, setValue] = useState(row.score !== null ? String(row.score) : "");
+  const [answeredCalls, setAnsweredCalls] = useState(String(row.answeredCalls));
+  const [score, setScore] = useState(row.score !== null ? String(row.score) : "");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setValue(row.score !== null ? String(row.score) : "");
-  }, [row.score]);
+    setAnsweredCalls(String(row.answeredCalls));
+    setScore(row.score !== null ? String(row.score) : "");
+  }, [row.answeredCalls, row.score]);
 
   const handleSave = () => {
-    if (value.trim() === "" || Number(value) === row.score) return;
+    const nextAnswered = Number(answeredCalls) || 0;
+    const nextScore = score.trim() === "" ? null : Number(score);
+    if (nextAnswered === row.answeredCalls && nextScore === row.score) return;
+
     updateScore.mutate(
-      { employeeId: row.employeeId, month, score: Number(value) },
+      { employeeId: row.employeeId, month, score: nextScore, answeredCalls: nextAnswered },
       {
         onSuccess: () => {
           setSaved(true);
@@ -256,13 +262,24 @@ function EmployeeScoreRow({ month, row }: { month: string; row: EmployeeScore })
     <tr className="border-b border-slate-50 last:border-0">
       <td className="px-4 py-2.5 font-medium text-slate-700">{row.employeeName}</td>
       <td className="px-4 py-2.5">
+        <input
+          type="number"
+          min={0}
+          value={answeredCalls}
+          onChange={(e) => setAnsweredCalls(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          className="input w-24 py-1.5"
+        />
+      </td>
+      <td className="px-4 py-2.5">
         <div className="flex items-center gap-2">
           <input
             type="number"
             min={0}
             step="0.1"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
+            value={score}
+            onChange={(e) => setScore(e.target.value)}
             onBlur={handleSave}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
             className="input w-24 py-1.5"

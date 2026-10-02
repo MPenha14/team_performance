@@ -6,4 +6,5 @@ export interface EmployeeScore {
   employeeName: string;
   month: string; // YYYY-MM
   score: number | null;
+  answeredCalls: number;
 }

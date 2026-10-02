@@ -232,12 +232,13 @@ model CallCenterMonthlyMetric {
 // (CallCenterMonthlyMetric.voxiaScore); nao afeta aquele calculo nem o
 // Dashboard.
 model CallCenterEmployeeScore {
-  id         String   @id @default(uuid())
-  employeeId String   @map("employee_id")
-  month      DateTime @db.Date
-  score      Decimal  @db.Decimal(5, 2)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  employeeId    String   @map("employee_id")
+  month         DateTime @db.Date
+  score         Decimal? @db.Decimal(5, 2)
+  answeredCalls Int      @default(0) @map("answered_calls")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 

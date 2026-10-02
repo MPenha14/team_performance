@@ -6,6 +6,7 @@ export interface EmployeeScoreDto {
   employeeName: string;
   month: string; // YYYY-MM
   score: number | null;
+  answeredCalls: number;
 }
 
 const MONTH_FORMAT = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -17,10 +18,10 @@ function toMonthDate(monthStr: string): Date {
   return new Date(`${monthStr}-01T00:00:00.000Z`);
 }
 
-// Lista TODOS os colaboradores ativos do Call Center com a nota do mes
-// informado (null quando ainda nao foi lancada) - a tela mostra a lista
-// inteira de uma vez, para lancar a nota de cada um sem precisar selecionar
-// colaborador por colaborador.
+// Lista TODOS os colaboradores ativos do Call Center com a nota e as
+// chamadas atendidas do mes informado (zerado/null quando ainda nao foi
+// lancado) - a tela mostra a lista inteira de uma vez, para lancar os
+// valores de cada um sem precisar selecionar colaborador por colaborador.
 export async function listEmployeeScoresForMonth(monthStr: string): Promise<EmployeeScoreDto[]> {
   const month = toMonthDate(monthStr);
 
@@ -30,20 +31,24 @@ export async function listEmployeeScoresForMonth(monthStr: string): Promise<Empl
     orderBy: { name: "asc" },
   });
   const scores = await prisma.callCenterEmployeeScore.findMany({ where: { month } });
-  const byEmployee = new Map(scores.map((row) => [row.employeeId, Number(row.score)]));
+  const byEmployee = new Map(scores.map((row) => [row.employeeId, row]));
 
-  return employees.map((employee) => ({
-    employeeId: employee.id,
-    employeeName: employee.name,
-    month: monthStr,
-    score: byEmployee.get(employee.id) ?? null,
-  }));
+  return employees.map((employee) => {
+    const row = byEmployee.get(employee.id);
+    return {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      month: monthStr,
+      score: row && row.score !== null ? Number(row.score) : null,
+      answeredCalls: row?.answeredCalls ?? 0,
+    };
+  });
 }
 
 export async function upsertEmployeeScore(
   employeeId: string,
   monthStr: string,
-  score: number
+  input: { score: number | null; answeredCalls: number }
 ): Promise<EmployeeScoreDto> {
   const month = toMonthDate(monthStr);
 
@@ -51,20 +56,25 @@ export async function upsertEmployeeScore(
   if (!employee) {
     throw new AppError("Colaborador não encontrado.", 404);
   }
-  if (!Number.isFinite(score) || score < 0) {
+  if (input.score !== null && (!Number.isFinite(input.score) || input.score < 0)) {
     throw new AppError("Nota deve ser um numero maior ou igual a zero.", 400);
   }
+  if (!Number.isFinite(input.answeredCalls) || input.answeredCalls < 0) {
+    throw new AppError("Chamadas atendidas deve ser um numero maior ou igual a zero.", 400);
+  }
 
+  const data = { score: input.score, answeredCalls: input.answeredCalls };
   const row = await prisma.callCenterEmployeeScore.upsert({
     where: { uniq_employee_score_month: { employeeId, month } },
-    update: { score },
-    create: { employeeId, month, score },
+    update: data,
+    create: { employeeId, month, ...data },
   });
 
   return {
     employeeId,
     employeeName: employee.name,
     month: monthStr,
-    score: Number(row.score),
+    score: row.score !== null ? Number(row.score) : null,
+    answeredCalls: row.answeredCalls,
   };
 }

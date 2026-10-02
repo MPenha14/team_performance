@@ -12,8 +12,17 @@ export function useScoresForMonth(month: string) {
 export function useUpdateEmployeeScore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ employeeId, month, score }: { employeeId: string; month: string; score: number }) =>
-      updateEmployeeScore(employeeId, month, score),
+    mutationFn: ({
+      employeeId,
+      month,
+      score,
+      answeredCalls,
+    }: {
+      employeeId: string;
+      month: string;
+      score: number | null;
+      answeredCalls: number;
+    }) => updateEmployeeScore(employeeId, month, { score, answeredCalls }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-scores"] });
     },

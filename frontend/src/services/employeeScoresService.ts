@@ -12,10 +12,11 @@ export async function fetchScoresForMonth(month: string): Promise<EmployeeScore[
 export async function updateEmployeeScore(
   employeeId: string,
   month: string,
-  score: number
+  input: { score: number | null; answeredCalls: number }
 ): Promise<EmployeeScore> {
-  const { data } = await api.put<ApiEnvelope<EmployeeScore>>(`/employee-scores/${employeeId}/${month}`, {
-    score,
-  });
+  const { data } = await api.put<ApiEnvelope<EmployeeScore>>(
+    `/employee-scores/${employeeId}/${month}`,
+    input
+  );
   return data.data;
 }

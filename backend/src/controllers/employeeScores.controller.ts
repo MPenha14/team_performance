@@ -12,7 +12,10 @@ export async function getScoresForMonth(req: Request, res: Response): Promise<vo
 }
 
 export async function putScoreByEmployeeMonth(req: Request, res: Response): Promise<void> {
-  const { score } = req.body ?? {};
-  const result = await upsertEmployeeScore(req.params.employeeId, req.params.month, Number(score));
+  const { score, answeredCalls } = req.body ?? {};
+  const result = await upsertEmployeeScore(req.params.employeeId, req.params.month, {
+    score: score === null || score === undefined || score === "" ? null : Number(score),
+    answeredCalls: Number(answeredCalls) || 0,
+  });
   res.json({ success: true, data: result });
 }
