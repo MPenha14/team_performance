@@ -1,10 +1,24 @@
-// Nota manual lancada individualmente por colaborador do Call Center, por
-// mes - lancamento independente dos indicadores agregados do time.
+// Dados manuais lancados individualmente por colaborador do Call Center,
+// por mes - usados na tela "Indicadores Manuais" (chamadas atendidas e Nota
+// Voxia) e na tela "Feedback" do programa de bonificação (Prova,
+// Assiduidade, Penalidades).
 
 export interface EmployeeScore {
   employeeId: string;
   employeeName: string;
   month: string; // YYYY-MM
-  score: number | null;
+  voxiaScore: number | null;
   answeredCalls: number;
+  testScore: number | null;
+  hasAbsenceOrLateness: boolean;
+  hasPenalty: boolean;
+}
+
+// Update parcial - so inclui os campos que estao de fato sendo editados.
+export interface EmployeeScoreInput {
+  voxiaScore?: number | null;
+  answeredCalls?: number;
+  testScore?: number | null;
+  hasAbsenceOrLateness?: boolean;
+  hasPenalty?: boolean;
 }

@@ -4,7 +4,7 @@ interface KpiCardProps {
   label: string;
   value: string | number;
   subLabel?: string;
-  subValue?: string | number;
+  subValue?: ReactNode;
   icon?: ReactNode;
   accent?: "blue" | "emerald" | "amber" | "violet" | "rose" | "slate";
   size?: "default" | "large";

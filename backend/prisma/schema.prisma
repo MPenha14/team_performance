@@ -231,12 +231,26 @@ model CallCenterMonthlyMetric {
 // individual e independente do indicador agregado do time
 // (CallCenterMonthlyMetric.voxiaScore); nao afeta aquele calculo nem o
 // Dashboard.
+// Dados manuais por colaborador/mes usados tanto na tela "Indicadores
+// Manuais" (chamadas atendidas e Nota Voxia) quanto na tela "Feedback" do
+// programa de bonificacao (Prova, Assiduidade, Penalidades), que soma-se ao
+// indicador automatico de Agendamentos para formar o Desempenho Total
+// (ver bonusProgram.service.ts).
 model CallCenterEmployeeScore {
   id            String   @id @default(uuid())
   employeeId    String   @map("employee_id")
   month         DateTime @db.Date
-  score         Decimal? @db.Decimal(5, 2)
+  voxiaScore    Decimal? @db.Decimal(5, 2) @map("voxia_score")
   answeredCalls Int      @default(0) @map("answered_calls")
+  // Nota da prova mensal (escala 0-10) - criterio "Prova" do programa de
+  // bonificacao (20%, nota 10 = pontuacao cheia).
+  testScore     Decimal? @db.Decimal(4, 2) @map("test_score")
+  // Teve falta ou atraso sem justificativa no mes - se true, zera os 5% do
+  // criterio "Assiduidade".
+  hasAbsenceOrLateness Boolean @default(false) @map("has_absence_or_lateness")
+  // Teve alguma penalidade no mes - se true, zera os 5% do criterio
+  // "Penalidades".
+  hasPenalty    Boolean  @default(false) @map("has_penalty")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { ApiEnvelope } from "../types/drclick";
-import { EmployeeScore } from "../types/employeeScore";
+import { EmployeeScore, EmployeeScoreInput } from "../types/employeeScore";
 
 export async function fetchScoresForMonth(month: string): Promise<EmployeeScore[]> {
   const { data } = await api.get<ApiEnvelope<EmployeeScore[]>>("/employee-scores", {
@@ -12,7 +12,7 @@ export async function fetchScoresForMonth(month: string): Promise<EmployeeScore[
 export async function updateEmployeeScore(
   employeeId: string,
   month: string,
-  input: { score: number | null; answeredCalls: number }
+  input: EmployeeScoreInput
 ): Promise<EmployeeScore> {
   const { data } = await api.put<ApiEnvelope<EmployeeScore>>(
     `/employee-scores/${employeeId}/${month}`,

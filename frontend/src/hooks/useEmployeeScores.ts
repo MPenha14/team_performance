@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchScoresForMonth, updateEmployeeScore } from "../services/employeeScoresService";
+import { EmployeeScoreInput } from "../types/employeeScore";
 
 export function useScoresForMonth(month: string) {
   return useQuery({
@@ -15,16 +16,15 @@ export function useUpdateEmployeeScore() {
     mutationFn: ({
       employeeId,
       month,
-      score,
-      answeredCalls,
+      input,
     }: {
       employeeId: string;
       month: string;
-      score: number | null;
-      answeredCalls: number;
-    }) => updateEmployeeScore(employeeId, month, { score, answeredCalls }),
+      input: EmployeeScoreInput;
+    }) => updateEmployeeScore(employeeId, month, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-scores"] });
+      queryClient.invalidateQueries({ queryKey: ["feedback"] });
     },
   });
 }

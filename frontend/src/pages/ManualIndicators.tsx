@@ -110,10 +110,11 @@ export function ManualIndicators() {
                 </div>
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
-                <span className="text-xs font-medium text-slate-500">Nota Voxia</span>
+                <span className="text-xs font-medium text-slate-500">Nota Voxia (0 a 10)</span>
                 <input
                   type="number"
                   min={0}
+                  max={10}
                   step="0.1"
                   value={voxiaScore}
                   onChange={(e) => setVoxiaScore(e.target.value)}
@@ -198,7 +199,8 @@ function EmployeeScoreSection() {
           <h2 className="text-sm font-semibold text-slate-700">Indicadores por Colaborador</h2>
           <p className="mt-1 text-xs text-slate-500">
             Lançamento individual, por colaborador e por mês — não altera os indicadores do time
-            acima.
+            acima. Nota Voxia aqui é em percentual (0 a 100), diferente da Nota Voxia geral do time
+            acima (0 a 10).
           </p>
         </div>
         <label className="flex flex-col gap-1.5 text-sm">
@@ -216,7 +218,7 @@ function EmployeeScoreSection() {
               <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2.5">Colaborador</th>
                 <th className="px-4 py-2.5">Chamadas Atendidas</th>
-                <th className="px-4 py-2.5">Nota Voxia</th>
+                <th className="px-4 py-2.5">Nota Voxia (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -234,21 +236,21 @@ function EmployeeScoreSection() {
 function EmployeeScoreRow({ month, row }: { month: string; row: EmployeeScore }) {
   const updateScore = useUpdateEmployeeScore();
   const [answeredCalls, setAnsweredCalls] = useState(String(row.answeredCalls));
-  const [score, setScore] = useState(row.score !== null ? String(row.score) : "");
+  const [voxiaScore, setVoxiaScore] = useState(row.voxiaScore !== null ? String(row.voxiaScore) : "");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setAnsweredCalls(String(row.answeredCalls));
-    setScore(row.score !== null ? String(row.score) : "");
-  }, [row.answeredCalls, row.score]);
+    setVoxiaScore(row.voxiaScore !== null ? String(row.voxiaScore) : "");
+  }, [row.answeredCalls, row.voxiaScore]);
 
   const handleSave = () => {
     const nextAnswered = Number(answeredCalls) || 0;
-    const nextScore = score.trim() === "" ? null : Number(score);
-    if (nextAnswered === row.answeredCalls && nextScore === row.score) return;
+    const nextScore = voxiaScore.trim() === "" ? null : Number(voxiaScore);
+    if (nextAnswered === row.answeredCalls && nextScore === row.voxiaScore) return;
 
     updateScore.mutate(
-      { employeeId: row.employeeId, month, score: nextScore, answeredCalls: nextAnswered },
+      { employeeId: row.employeeId, month, input: { voxiaScore: nextScore, answeredCalls: nextAnswered } },
       {
         onSuccess: () => {
           setSaved(true);
@@ -277,9 +279,10 @@ function EmployeeScoreRow({ month, row }: { month: string; row: EmployeeScore })
           <input
             type="number"
             min={0}
+            max={100}
             step="0.1"
-            value={score}
-            onChange={(e) => setScore(e.target.value)}
+            value={voxiaScore}
+            onChange={(e) => setVoxiaScore(e.target.value)}
             onBlur={handleSave}
             onKeyDown={(e) => e.key === "Enter" && handleSave()}
             className="input w-24 py-1.5"

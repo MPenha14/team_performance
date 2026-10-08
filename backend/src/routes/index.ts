@@ -32,6 +32,7 @@ import {
   putMetricByMonth,
 } from "../controllers/callCenterMetrics.controller";
 import { getScoresForMonth, putScoreByEmployeeMonth } from "../controllers/employeeScores.controller";
+import { getFeedback, getFeedbackHistory } from "../controllers/feedback.controller";
 
 export const router = Router();
 
@@ -74,3 +75,6 @@ router.put("/call-center-metrics/:month", asyncHandler(putMetricByMonth));
 
 router.get("/employee-scores", asyncHandler(getScoresForMonth));
 router.put("/employee-scores/:employeeId/:month", asyncHandler(putScoreByEmployeeMonth));
+
+router.get("/feedback/:employeeId/history", asyncHandler(getFeedbackHistory));
+router.get("/feedback/:employeeId", asyncHandler(getFeedback));
