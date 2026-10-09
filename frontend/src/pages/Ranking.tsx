@@ -47,7 +47,7 @@ export function Ranking({ team }: RankingProps) {
   return (
     <>
       <TopBar
-        title={`Ranking de Performance — ${TEAM_LABEL[team]}`}
+        title={`Ranking de Performance  ${TEAM_LABEL[team]}`}
         subtitle="Classificação dos colaboradores no período selecionado"
       />
 

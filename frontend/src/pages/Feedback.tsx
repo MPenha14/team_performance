@@ -8,13 +8,25 @@ import { LoadingState } from "../components/LoadingState";
 import { ErrorState } from "../components/ErrorState";
 import { useEmployees } from "../hooks/useEmployees";
 import { useEmployeeFeedback, useEmployeeFeedbackHistory } from "../hooks/useFeedback";
-import { useUpdateEmployeeScore } from "../hooks/useEmployeeScores";
 import { BonusTrendChart } from "../charts/BonusTrendChart";
-import { IndicatorTrendChart } from "../charts/IndicatorTrendChart";
+import { IndicatorTrendChart, formatMonthShort } from "../charts/IndicatorTrendChart";
 import { EmployeeFeedback, EmployeeFeedbackMonth } from "../types/feedback";
 import { formatNumber, formatPercent } from "../utils/format";
 
-const HISTORY_MONTHS = 4;
+const DEFAULT_EVOLUTION_MONTHS = 4;
+const MAX_EVOLUTION_MONTHS = 12;
+
+function addMonths(monthStr: string, delta: number): string {
+  const [year, month] = monthStr.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthsBetweenInclusive(start: string, end: string): number {
+  const [sy, sm] = start.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  return ey * 12 + em - (sy * 12 + sm) + 1;
+}
 
 // Comparativo com o mes anterior - nunca so a cor carregando o significado,
 // sempre junto com a seta e o texto "vs mes anterior".
@@ -126,6 +138,9 @@ export function Feedback() {
   const [employeeId, setEmployeeId] = useState("");
   const [month, setMonth] = useState(currentMonthIso());
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [evolutionStart, setEvolutionStart] = useState(() => addMonths(currentMonthIso(), -(DEFAULT_EVOLUTION_MONTHS - 1)));
+  const [evolutionEnd, setEvolutionEnd] = useState(() => currentMonthIso());
   const topRef = useRef<HTMLDivElement>(null);
   const chartsRef = useRef<HTMLDivElement>(null);
 
@@ -136,10 +151,23 @@ export function Feedback() {
   }, [employees, employeeId]);
 
   const { data, isLoading, isError, error, refetch } = useEmployeeFeedback(employeeId, month);
-  const { data: history, isLoading: historyLoading } = useEmployeeFeedbackHistory(employeeId, month, HISTORY_MONTHS);
+  // Mes anterior ao selecionado, buscado a parte - so para os indicadores
+  // "vs mes anterior" do topo, independente do periodo de comparacao
+  // escolhido pelo usuario em Evolucao dos Indicadores.
+  const { data: previousMonth } = useEmployeeFeedback(employeeId, addMonths(month, -1));
 
-  const previousMonth: EmployeeFeedbackMonth | undefined =
-    history && history.length >= 2 ? history[history.length - 2] : undefined;
+  // Periodo de comparacao da Evolucao dos Indicadores - o usuario escolhe
+  // livremente (De/Ate), independente do mes selecionado acima.
+  const safeEvolutionStart = evolutionStart <= evolutionEnd ? evolutionStart : evolutionEnd;
+  const evolutionMonthsCount = Math.min(
+    MAX_EVOLUTION_MONTHS,
+    Math.max(1, monthsBetweenInclusive(safeEvolutionStart, evolutionEnd))
+  );
+  const { data: history, isLoading: historyLoading } = useEmployeeFeedbackHistory(
+    employeeId,
+    evolutionEnd,
+    evolutionMonthsCount
+  );
 
   const employeesFiltrados = (employees ?? []).filter(
     (employee) => !busca || employee.name.toLowerCase().includes(busca.toLowerCase())
@@ -151,10 +179,18 @@ export function Feedback() {
     if (!topEl || !chartsEl || !data) return;
     setGeneratingPDF(true);
 
+    // O PDF sempre mostra o detalhamento completo, independente do estado
+    // retratil na tela (clicar ou nao em "Desempenho Total").
+    const wasExpanded = showBreakdown;
+    if (!wasExpanded) setShowBreakdown(true);
+
     // Largura fixa pra garantir o grid dos cartoes completo na captura.
     const CAPTURE_WIDTH = 1000;
     const prevTopStyle = topEl.getAttribute("style") ?? "";
     const prevChartsStyle = chartsEl.getAttribute("style") ?? "";
+
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
     topEl.style.width = `${CAPTURE_WIDTH}px`;
     topEl.style.maxWidth = "none";
     chartsEl.style.width = `${CAPTURE_WIDTH}px`;
@@ -181,13 +217,14 @@ export function Feedback() {
     } finally {
       topEl.setAttribute("style", prevTopStyle);
       chartsEl.setAttribute("style", prevChartsStyle);
+      setShowBreakdown(wasExpanded);
       setGeneratingPDF(false);
     }
   }
 
   return (
     <>
-      <TopBar title="Feedback" subtitle="Programa de bonificação — Equipe Call Center" />
+      <TopBar title="Feedback" subtitle="Programa de bonificação  Equipe Call Center" />
 
       <main className="flex-1 space-y-6 p-6">
         <div className="rounded-2xl bg-white p-4 shadow-card ring-1 ring-slate-900/5">
@@ -228,6 +265,14 @@ export function Feedback() {
           </div>
         </div>
 
+        <p className="text-xs text-slate-500">
+          Chamadas Atendidas, Nota Voxia, Prova, Assiduidade e Penalidades são lançadas em{" "}
+          <Link to="/call-center/indicadores-manuais" className="text-brand-600 hover:text-brand-700">
+            Indicadores Manuais
+          </Link>
+          .
+        </p>
+
         {isLoading && <LoadingState />}
         {isError && <ErrorState error={error} onRetry={() => refetch()} />}
 
@@ -236,7 +281,7 @@ export function Feedback() {
             <div ref={topRef} className="space-y-6 bg-white">
               <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Media Performance — Relatório de Feedback Individual
+                  Media Performance Relatório de Feedback Individual
                 </p>
                 <h2 className="mt-1 text-lg font-bold text-slate-900">{data.employee.name}</h2>
                 <p className="text-sm text-slate-500">
@@ -244,7 +289,7 @@ export function Feedback() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
                 <KpiCard
                   label="Agendamentos"
                   value={formatNumber(data.stats.agendamentos)}
@@ -294,6 +339,18 @@ export function Feedback() {
                   }
                 />
                 <KpiCard
+                  label="Nota Prova"
+                  value={data.bonus.prova.value !== null ? formatScore(data.bonus.prova.value) : "—"}
+                  accent="slate"
+                  subValue={
+                    <DeltaBadge
+                      current={data.bonus.prova.value}
+                      previous={previousMonth?.bonus.prova.value}
+                      format={(v) => formatScore(v)}
+                    />
+                  }
+                />
+                <KpiCard
                   label="Nota Voxia (%)"
                   value={data.stats.voxiaScore !== null ? `${formatScore(data.stats.voxiaScore)}%` : "—"}
                   accent="rose"
@@ -305,15 +362,31 @@ export function Feedback() {
                     />
                   }
                 />
+                <DesempenhoTotalCard
+                  total={data.bonus.total}
+                  previous={previousMonth?.bonus.total}
+                  expanded={showBreakdown}
+                  onToggle={() => setShowBreakdown((v) => !v)}
+                />
               </div>
 
-              <BonusSection feedback={data} previousMonth={previousMonth} />
+              {showBreakdown && (
+                <div className="space-y-3">
+                  <h2 className="text-sm font-semibold text-slate-700">Detalhamento do Desempenho Total</h2>
+                  <BonusCriteriaGrid feedback={data} previousMonth={previousMonth} />
+                </div>
+              )}
             </div>
 
-            <ManualEntryForm employeeId={employeeId} month={month} manual={data.manual} />
-
             <div ref={chartsRef} className="space-y-6 bg-white">
-              <EvolutionSection history={history} historyLoading={historyLoading} />
+              <EvolutionSection
+                history={history}
+                historyLoading={historyLoading}
+                evolutionStart={evolutionStart}
+                evolutionEnd={evolutionEnd}
+                onChangeStart={setEvolutionStart}
+                onChangeEnd={setEvolutionEnd}
+              />
             </div>
           </>
         )}
@@ -325,90 +398,125 @@ export function Feedback() {
 function EvolutionSection({
   history,
   historyLoading,
+  evolutionStart,
+  evolutionEnd,
+  onChangeStart,
+  onChangeEnd,
 }: {
   history: EmployeeFeedbackMonth[] | undefined;
   historyLoading: boolean;
+  evolutionStart: string;
+  evolutionEnd: string;
+  onChangeStart: (value: string) => void;
+  onChangeEnd: (value: string) => void;
 }) {
+  const rangeLabel =
+    history && history.length > 0
+      ? `${formatMonthShort(history[0].month)} – ${formatMonthShort(history[history.length - 1].month)}`
+      : null;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
-        <h2 className="text-sm font-semibold text-slate-700">Progresso — Desempenho Total</h2>
-        <p className="mt-1 text-xs text-slate-500">Últimos {history?.length ?? HISTORY_MONTHS} meses</p>
-        <div className="mt-3">
-          {historyLoading ? <LoadingState /> : <BonusTrendChart data={history ?? []} />}
+    <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">Evolução dos Indicadores</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            {rangeLabel ? `Período: ${rangeLabel}` : "Selecione o período para comparar"} (máx. {MAX_EVOLUTION_MONTHS}{" "}
+            meses)
+          </p>
+        </div>
+        <div className="flex items-end gap-3">
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-xs font-medium text-slate-500">De</span>
+            <input
+              type="month"
+              value={evolutionStart}
+              onChange={(e) => onChangeStart(e.target.value)}
+              className="input w-40"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-xs font-medium text-slate-500">Até</span>
+            <input
+              type="month"
+              value={evolutionEnd}
+              onChange={(e) => onChangeEnd(e.target.value)}
+              className="input w-40"
+            />
+          </label>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
-        <h2 className="text-sm font-semibold text-slate-700">Evolução dos Indicadores</h2>
-        <p className="mt-1 text-xs text-slate-500">Últimos {history?.length ?? HISTORY_MONTHS} meses</p>
-
-        {historyLoading ? (
-          <div className="mt-3">
-            <LoadingState />
+      {historyLoading ? (
+        <div className="mt-4">
+          <LoadingState />
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Agendamentos</h3>
+            <IndicatorTrendChart
+              data={history ?? []}
+              month={(m) => m.month}
+              value={(m) => m.stats.agendamentos}
+              label="Agendamentos"
+              color="#2563eb"
+              formatValue={(v) => formatNumber(v)}
+            />
           </div>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Agendamentos</h3>
-              <IndicatorTrendChart
-                data={history ?? []}
-                month={(m) => m.month}
-                value={(m) => m.stats.agendamentos}
-                label="Agendamentos"
-                color="#2563eb"
-                formatValue={(v) => formatNumber(v)}
-              />
-            </div>
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Pacientes Atendidos</h3>
-              <IndicatorTrendChart
-                data={history ?? []}
-                month={(m) => m.month}
-                value={(m) => m.stats.pacientesAtendidos}
-                label="Pacientes Atendidos"
-                color="#059669"
-                formatValue={(v) => formatNumber(v)}
-              />
-            </div>
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Conversão</h3>
-              <IndicatorTrendChart
-                data={history ?? []}
-                month={(m) => m.month}
-                value={(m) => m.stats.conversionRate}
-                label="Conversão"
-                color="#f59e0b"
-                formatValue={(v) => formatPercent(v)}
-                domain={[0, 100]}
-              />
-            </div>
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Chamadas Atendidas</h3>
-              <IndicatorTrendChart
-                data={history ?? []}
-                month={(m) => m.month}
-                value={(m) => m.stats.answeredCalls}
-                label="Chamadas Atendidas"
-                color="#7c3aed"
-                formatValue={(v) => formatNumber(v)}
-              />
-            </div>
-            <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nota Voxia (%)</h3>
-              <IndicatorTrendChart
-                data={history ?? []}
-                month={(m) => m.month}
-                value={(m) => m.stats.voxiaScore}
-                label="Nota Voxia"
-                color="#e11d48"
-                formatValue={(v) => `${formatScore(v)}%`}
-                domain={[0, 100]}
-              />
-            </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Conversão</h3>
+            <IndicatorTrendChart
+              data={history ?? []}
+              month={(m) => m.month}
+              value={(m) => m.stats.conversionRate}
+              label="Conversão"
+              color="#f59e0b"
+              formatValue={(v) => formatPercent(v)}
+              domain={[0, 100]}
+            />
           </div>
-        )}
-      </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Chamadas Atendidas</h3>
+            <IndicatorTrendChart
+              data={history ?? []}
+              month={(m) => m.month}
+              value={(m) => m.stats.answeredCalls}
+              label="Chamadas Atendidas"
+              color="#7c3aed"
+              formatValue={(v) => formatNumber(v)}
+            />
+          </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nota Prova</h3>
+            <IndicatorTrendChart
+              data={history ?? []}
+              month={(m) => m.month}
+              value={(m) => m.bonus.prova.value}
+              label="Nota Prova"
+              color="#475569"
+              formatValue={(v) => formatScore(v)}
+              domain={[0, 10]}
+            />
+          </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nota Voxia (%)</h3>
+            <IndicatorTrendChart
+              data={history ?? []}
+              month={(m) => m.month}
+              value={(m) => m.stats.voxiaScore}
+              label="Nota Voxia"
+              color="#e11d48"
+              formatValue={(v) => `${formatScore(v)}%`}
+              domain={[0, 100]}
+            />
+          </div>
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Desempenho Total</h3>
+            <BonusTrendChart data={history ?? []} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -496,7 +604,50 @@ function StatusCriterionCard({
   );
 }
 
-function BonusSection({
+function DesempenhoTotalCard({
+  total,
+  previous,
+  expanded,
+  onToggle,
+}: {
+  total: number;
+  previous?: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const tier = tierFor(total);
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex flex-col items-start rounded-2xl bg-white p-5 text-left shadow-card ring-1 ring-slate-900/5 transition-shadow hover:shadow-card-hover"
+    >
+      <div className="flex w-full items-center justify-between gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Desempenho Total</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </div>
+      <div className={`mt-2 text-2xl font-bold ${tier.text}`}>{total.toFixed(1)}%</div>
+      <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${tier.chip}`}>
+        {tier.label}
+      </span>
+      <div className="mt-1 text-xs">
+        <DeltaBadge current={total} previous={previous} format={(v) => `${v.toFixed(1)} p.p.`} />
+      </div>
+    </button>
+  );
+}
+
+function BonusCriteriaGrid({
   feedback,
   previousMonth,
 }: {
@@ -504,31 +655,9 @@ function BonusSection({
   previousMonth?: EmployeeFeedbackMonth;
 }) {
   const { bonus } = feedback;
-  const totalTier = tierFor(bonus.total);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-700">Desempenho Total</h2>
-            <span className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${totalTier.chip}`}>
-              {totalTier.label}
-            </span>
-          </div>
-          <div className="text-right">
-            <div className={`text-5xl font-bold ${totalTier.text}`}>{bonus.total.toFixed(1)}%</div>
-            <div className="mt-1 text-xs">
-              <DeltaBadge current={bonus.total} previous={previousMonth?.bonus.total} format={(v) => `${v.toFixed(1)} p.p.`} />
-            </div>
-          </div>
-        </div>
-        <div className={`mt-4 h-3 w-full overflow-hidden rounded-full ${totalTier.track}`}>
-          <div className={`h-full rounded-full ${totalTier.fill}`} style={{ width: `${Math.min(100, bonus.total)}%` }} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MeterCriterionCard
           label={`Agendamentos (${bonus.agendamentos.weight}%)`}
           weight={bonus.agendamentos.weight}
@@ -567,101 +696,6 @@ function BonusSection({
           previousEarned={previousMonth?.bonus.penalidades.earned}
         />
       </div>
-    </div>
   );
 }
 
-function ManualEntryForm({
-  employeeId,
-  month,
-  manual,
-}: {
-  employeeId: string;
-  month: string;
-  manual: EmployeeFeedback["manual"];
-}) {
-  const updateScore = useUpdateEmployeeScore();
-
-  const [testScore, setTestScore] = useState(manual.testScore !== null ? String(manual.testScore) : "");
-  const [hasAbsenceOrLateness, setHasAbsenceOrLateness] = useState(manual.hasAbsenceOrLateness);
-  const [hasPenalty, setHasPenalty] = useState(manual.hasPenalty);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    setTestScore(manual.testScore !== null ? String(manual.testScore) : "");
-    setHasAbsenceOrLateness(manual.hasAbsenceOrLateness);
-    setHasPenalty(manual.hasPenalty);
-    setSaved(false);
-  }, [manual.testScore, manual.hasAbsenceOrLateness, manual.hasPenalty]);
-
-  const handleSave = () => {
-    updateScore.mutate(
-      {
-        employeeId,
-        month,
-        input: {
-          testScore: testScore.trim() === "" ? null : Number(testScore),
-          hasAbsenceOrLateness,
-          hasPenalty,
-        },
-      },
-      { onSuccess: () => setSaved(true) }
-    );
-  };
-
-  return (
-    <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
-      <h3 className="text-sm font-semibold text-slate-700">Lançar Prova / Assiduidade / Penalidades</h3>
-      <p className="mt-1 text-xs text-slate-500">
-        Chamadas Atendidas e Nota Voxia são lançadas em{" "}
-        <Link to="/call-center/indicadores-manuais" className="text-brand-600 hover:text-brand-700">
-          Indicadores Manuais
-        </Link>
-        .
-      </p>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-xs font-medium text-slate-500">Nota da Prova (0-10)</span>
-          <input
-            type="number"
-            min={0}
-            step="0.1"
-            value={testScore}
-            onChange={(e) => setTestScore(e.target.value)}
-            className="input"
-          />
-        </label>
-        <label className="flex items-center gap-2 self-end pb-2.5 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={hasAbsenceOrLateness}
-            onChange={(e) => setHasAbsenceOrLateness(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
-          />
-          Teve falta/atraso sem justificativa
-        </label>
-        <label className="flex items-center gap-2 self-end pb-2.5 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={hasPenalty}
-            onChange={(e) => setHasPenalty(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
-          />
-          Teve penalidade
-        </label>
-      </div>
-
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={updateScore.isPending}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {updateScore.isPending ? "Salvando..." : "Salvar"}
-        </button>
-        {saved && <span className="text-sm text-emerald-600">Salvo ✓</span>}
-      </div>
-    </div>
-  );
-}

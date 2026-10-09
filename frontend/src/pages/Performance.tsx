@@ -39,7 +39,7 @@ export function Performance({ team }: PerformanceProps) {
   return (
     <>
       <TopBar
-        title={`Performance — ${TEAM_LABEL[team]}`}
+        title={`Performance ${TEAM_LABEL[team]}`}
         subtitle="Agendamentos, atendimentos e conversão por colaborador"
       />
 

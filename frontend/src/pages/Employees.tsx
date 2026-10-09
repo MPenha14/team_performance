@@ -84,7 +84,7 @@ export function Employees({ team }: EmployeesProps) {
 
   return (
     <>
-      <TopBar title={`Colaboradores — ${TEAM_LABEL[team]}`} subtitle={`Cadastro da equipe de ${TEAM_LABEL[team]}`} />
+      <TopBar title={`Colaboradores  ${TEAM_LABEL[team]}`} subtitle={`Cadastro da equipe de ${TEAM_LABEL[team]}`} />
 
       <main className="flex-1 space-y-6 p-6">
         <div className="flex items-start justify-between gap-4">

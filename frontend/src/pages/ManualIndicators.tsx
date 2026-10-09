@@ -58,7 +58,7 @@ export function ManualIndicators() {
     <>
       <TopBar
         title="Indicadores Manuais"
-        subtitle="Chamadas ofertadas, atendidas e Nota Voxia — Equipe Call Center"
+        subtitle="Chamadas ofertadas, atendidas e Nota Voxia  Equipe Call Center"
       />
 
       <main className="flex-1 space-y-6 p-6">
@@ -197,11 +197,12 @@ function EmployeeScoreSection() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">Indicadores por Colaborador</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Lançamento individual, por colaborador e por mês — não altera os indicadores do time
+         { /* <p className="mt-1 text-xs text-slate-500">
+            Lançamento individual, por colaborador e por mês  não altera os indicadores do time
             acima. Nota Voxia aqui é em percentual (0 a 100), diferente da Nota Voxia geral do time
-            acima (0 a 10).
-          </p>
+            acima (0 a 10). Esses valores (incluindo Prova, Assiduidade e Penalidades) aparecem no
+            programa de bonificação, na tela Feedback.
+          </p> */}
         </div>
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-xs font-medium text-slate-500">Mês</span>
@@ -213,12 +214,15 @@ function EmployeeScoreSection() {
         <LoadingState />
       ) : (
         <div className="mt-5 overflow-x-auto rounded-xl ring-1 ring-slate-100">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-2.5">Colaborador</th>
                 <th className="px-4 py-2.5">Chamadas Atendidas</th>
                 <th className="px-4 py-2.5">Nota Voxia (%)</th>
+                <th className="px-4 py-2.5">Prova (0-10)</th>
+                <th className="px-4 py-2.5">Assiduidade</th>
+                <th className="px-4 py-2.5">Penalidades</th>
               </tr>
             </thead>
             <tbody>
@@ -237,20 +241,49 @@ function EmployeeScoreRow({ month, row }: { month: string; row: EmployeeScore })
   const updateScore = useUpdateEmployeeScore();
   const [answeredCalls, setAnsweredCalls] = useState(String(row.answeredCalls));
   const [voxiaScore, setVoxiaScore] = useState(row.voxiaScore !== null ? String(row.voxiaScore) : "");
+  const [testScore, setTestScore] = useState(row.testScore !== null ? String(row.testScore) : "");
+  const [hasAbsenceOrLateness, setHasAbsenceOrLateness] = useState(row.hasAbsenceOrLateness);
+  const [hasPenalty, setHasPenalty] = useState(row.hasPenalty);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setAnsweredCalls(String(row.answeredCalls));
     setVoxiaScore(row.voxiaScore !== null ? String(row.voxiaScore) : "");
-  }, [row.answeredCalls, row.voxiaScore]);
+    setTestScore(row.testScore !== null ? String(row.testScore) : "");
+    setHasAbsenceOrLateness(row.hasAbsenceOrLateness);
+    setHasPenalty(row.hasPenalty);
+  }, [row.answeredCalls, row.voxiaScore, row.testScore, row.hasAbsenceOrLateness, row.hasPenalty]);
 
-  const handleSave = () => {
+  // Salva os 5 campos juntos sempre que qualquer um muda (blur nos campos
+  // numericos, mudanca imediata nos checkboxes) - evita que salvar um campo
+  // sobrescreva o que outro campo tinha acabado de gravar.
+  const handleSave = (overrides?: { hasAbsenceOrLateness?: boolean; hasPenalty?: boolean }) => {
     const nextAnswered = Number(answeredCalls) || 0;
-    const nextScore = voxiaScore.trim() === "" ? null : Number(voxiaScore);
-    if (nextAnswered === row.answeredCalls && nextScore === row.voxiaScore) return;
+    const nextVoxia = voxiaScore.trim() === "" ? null : Number(voxiaScore);
+    const nextTest = testScore.trim() === "" ? null : Number(testScore);
+    const nextAbsence = overrides?.hasAbsenceOrLateness ?? hasAbsenceOrLateness;
+    const nextPenalty = overrides?.hasPenalty ?? hasPenalty;
+
+    const unchanged =
+      nextAnswered === row.answeredCalls &&
+      nextVoxia === row.voxiaScore &&
+      nextTest === row.testScore &&
+      nextAbsence === row.hasAbsenceOrLateness &&
+      nextPenalty === row.hasPenalty;
+    if (unchanged) return;
 
     updateScore.mutate(
-      { employeeId: row.employeeId, month, input: { voxiaScore: nextScore, answeredCalls: nextAnswered } },
+      {
+        employeeId: row.employeeId,
+        month,
+        input: {
+          answeredCalls: nextAnswered,
+          voxiaScore: nextVoxia,
+          testScore: nextTest,
+          hasAbsenceOrLateness: nextAbsence,
+          hasPenalty: nextPenalty,
+        },
+      },
       {
         onSuccess: () => {
           setSaved(true);
@@ -269,24 +302,67 @@ function EmployeeScoreRow({ month, row }: { month: string; row: EmployeeScore })
           min={0}
           value={answeredCalls}
           onChange={(e) => setAnsweredCalls(e.target.value)}
-          onBlur={handleSave}
+          onBlur={() => handleSave()}
           onKeyDown={(e) => e.key === "Enter" && handleSave()}
           className="input w-24 py-1.5"
         />
       </td>
       <td className="px-4 py-2.5">
-        <div className="flex items-center gap-2">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step="0.1"
+          value={voxiaScore}
+          onChange={(e) => setVoxiaScore(e.target.value)}
+          onBlur={() => handleSave()}
+          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          className="input w-24 py-1.5"
+        />
+      </td>
+      <td className="px-4 py-2.5">
+        <input
+          type="number"
+          min={0}
+          max={10}
+          step="0.1"
+          value={testScore}
+          onChange={(e) => setTestScore(e.target.value)}
+          onBlur={() => handleSave()}
+          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          className="input w-24 py-1.5"
+        />
+      </td>
+      <td className="px-4 py-2.5">
+        <label className="flex items-center gap-2 text-xs text-slate-600">
           <input
-            type="number"
-            min={0}
-            max={100}
-            step="0.1"
-            value={voxiaScore}
-            onChange={(e) => setVoxiaScore(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-            className="input w-24 py-1.5"
+            type="checkbox"
+            checked={hasAbsenceOrLateness}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setHasAbsenceOrLateness(checked);
+              handleSave({ hasAbsenceOrLateness: checked });
+            }}
+            className="h-4 w-4 rounded border-slate-300"
           />
+          Falta/atraso
+        </label>
+      </td>
+      <td className="px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={hasPenalty}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setHasPenalty(checked);
+                handleSave({ hasPenalty: checked });
+              }}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Penalidade
+          </label>
           {updateScore.isPending && <span className="text-xs text-slate-400">Salvando…</span>}
           {saved && <span className="text-xs text-emerald-600">Salvo ✓</span>}
         </div>

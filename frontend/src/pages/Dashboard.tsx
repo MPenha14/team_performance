@@ -60,7 +60,7 @@ export function Dashboard({ team }: DashboardProps) {
     <>
       <TopBar
         title="Media Performance"
-        subtitle={`Performance de Agendamentos — Equipe ${TEAM_LABEL[team]}`}
+        subtitle={`Performance de Agendamentos Equipe ${TEAM_LABEL[team]}`}
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : lastUpdated}
       />
 
