@@ -67,47 +67,13 @@ function formatScore(value: number | null): string {
   return value !== null ? value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "—";
 }
 
-// Captura um bloco (ref) e adiciona suas paginas ao PDF, fatiando em
-// blocos do tamanho de uma pagina (largura cheia) em vez de encolher tudo
-// numa pagina so. `isFirstOverall` evita pular pagina em branco antes do
-// primeiro bloco capturado.
-async function addRefToPdf(
-  pdf: jsPDF,
-  el: HTMLElement,
-  margin: number,
-  usableW: number,
-  usableH: number,
-  isFirstOverall: boolean
-): Promise<void> {
-  const canvas = await html2canvas(el, {
-    scale: 1.5,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
+// Espera o React terminar de commitar/pintar antes de capturar - duas
+// rAF garantem o commit, o timeout extra da' tempo pros graficos (Recharts)
+// terminarem o proprio layout antes do html2canvas rodar.
+function waitForRender(ms = 350): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, ms)));
   });
-
-  const pxPerMm = canvas.width / usableW;
-  const pageHeightPx = Math.floor(usableH * pxPerMm);
-
-  const sliceCanvas = document.createElement("canvas");
-  sliceCanvas.width = canvas.width;
-  const ctx = sliceCanvas.getContext("2d");
-
-  let renderedPx = 0;
-  let first = isFirstOverall;
-  while (renderedPx < canvas.height) {
-    const sliceHeightPx = Math.min(pageHeightPx, canvas.height - renderedPx);
-    sliceCanvas.height = sliceHeightPx;
-    ctx?.clearRect(0, 0, sliceCanvas.width, sliceHeightPx);
-    ctx?.drawImage(canvas, 0, renderedPx, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
-
-    if (!first) pdf.addPage();
-    first = false;
-    const sliceHeightMm = sliceHeightPx / pxPerMm;
-    pdf.addImage(sliceCanvas.toDataURL("image/jpeg", 0.85), "JPEG", margin, margin, usableW, sliceHeightMm);
-
-    renderedPx += sliceHeightPx;
-  }
 }
 
 // Faixas de severidade do desempenho - mesma logica pro Desempenho Total e
@@ -141,8 +107,7 @@ export function Feedback() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [evolutionStart, setEvolutionStart] = useState(() => addMonths(currentMonthIso(), -(DEFAULT_EVOLUTION_MONTHS - 1)));
   const [evolutionEnd, setEvolutionEnd] = useState(() => currentMonthIso());
-  const topRef = useRef<HTMLDivElement>(null);
-  const chartsRef = useRef<HTMLDivElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!employeeId && employees && employees.length > 0) {
@@ -173,10 +138,11 @@ export function Feedback() {
     (employee) => !busca || employee.name.toLowerCase().includes(busca.toLowerCase())
   );
 
+  const pdfDataReady = !isLoading && !historyLoading && Boolean(data) && Boolean(history);
+
   async function handleDownloadPDF() {
-    const topEl = topRef.current;
-    const chartsEl = chartsRef.current;
-    if (!topEl || !chartsEl || !data) return;
+    const el = printRef.current;
+    if (!el || !data || !pdfDataReady) return;
     setGeneratingPDF(true);
 
     // O PDF sempre mostra o detalhamento completo, independente do estado
@@ -186,37 +152,53 @@ export function Feedback() {
 
     // Largura fixa pra garantir o grid dos cartoes completo na captura.
     const CAPTURE_WIDTH = 1000;
-    const prevTopStyle = topEl.getAttribute("style") ?? "";
-    const prevChartsStyle = chartsEl.getAttribute("style") ?? "";
+    const prevStyle = el.getAttribute("style") ?? "";
 
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    // Campos de input nativos (ex: os seletores "De"/"Até") nao renderizam
+    // bem no html2canvas (mostram o valor cru "2026-07" em vez do texto
+    // formatado) - escondidos so durante a captura, o resumo em texto ao
+    // lado ja informa o periodo escolhido.
+    const hiddenEls = Array.from(el.querySelectorAll<HTMLElement>("[data-pdf-hide]"));
+    const prevHiddenStyles = hiddenEls.map((node) => node.getAttribute("style") ?? "");
 
-    topEl.style.width = `${CAPTURE_WIDTH}px`;
-    topEl.style.maxWidth = "none";
-    chartsEl.style.width = `${CAPTURE_WIDTH}px`;
-    chartsEl.style.maxWidth = "none";
+    // Espera o breakdown (se acabou de ser forcado a abrir) e os graficos
+    // assentarem antes de mexer no layout - evita capturar um estado a
+    // meio caminho do re-render ("tela antiga"/incompleta no PDF).
+    await waitForRender();
 
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    el.style.width = `${CAPTURE_WIDTH}px`;
+    el.style.maxWidth = "none";
+    hiddenEls.forEach((node) => {
+      node.style.display = "none";
+    });
+
+    await waitForRender();
 
     try {
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 8;
-      const usableW = pageW - margin * 2;
-      const usableH = pageH - margin * 2;
+      const canvas = await html2canvas(el, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
 
-      // O formulario de lancamento (entre os dois blocos na tela) nao entra
-      // no PDF - captura o bloco de cima (resumo + bonus) e depois o bloco
-      // dos graficos, cada um comecando em pagina nova.
-      await addRefToPdf(pdf, topEl, margin, usableW, usableH, true);
-      await addRefToPdf(pdf, chartsEl, margin, usableW, usableH, false);
+      // Uma unica pagina continua (altura sob medida pro conteudo inteiro)
+      // em vez de varias paginas A4 - tudo em uma unica "tela" impressa.
+      const margin = 8;
+      const pageW = 210;
+      const usableW = pageW - margin * 2;
+      const pxPerMm = canvas.width / usableW;
+      const contentHeightMm = canvas.height / pxPerMm;
+      const pageH = contentHeightMm + margin * 2;
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [pageW, pageH] });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.85), "JPEG", margin, margin, usableW, contentHeightMm);
 
       const nomeArquivo = ["feedback", data.employee.name.replace(/\s+/g, "-").toLowerCase(), month].join("_");
       pdf.save(`${nomeArquivo}.pdf`);
     } finally {
-      topEl.setAttribute("style", prevTopStyle);
-      chartsEl.setAttribute("style", prevChartsStyle);
+      el.setAttribute("style", prevStyle);
+      hiddenEls.forEach((node, i) => node.setAttribute("style", prevHiddenStyles[i]));
       setShowBreakdown(wasExpanded);
       setGeneratingPDF(false);
     }
@@ -256,10 +238,11 @@ export function Feedback() {
             {data && (
               <button
                 onClick={handleDownloadPDF}
-                disabled={generatingPDF}
+                disabled={generatingPDF || !pdfDataReady}
+                title={!pdfDataReady ? "Aguarde os dados terminarem de carregar" : undefined}
                 className="ml-auto flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {generatingPDF ? "Gerando PDF..." : "⬇ Baixar PDF"}
+                {generatingPDF ? "Gerando PDF..." : !pdfDataReady ? "Carregando dados..." : "⬇ Baixar PDF"}
               </button>
             )}
           </div>
@@ -278,7 +261,7 @@ export function Feedback() {
 
         {!isLoading && !isError && data && (
           <>
-            <div ref={topRef} className="space-y-6 bg-white">
+            <div ref={printRef} className="space-y-6 bg-white">
               <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-slate-900/5">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Media Performance Relatório de Feedback Individual
@@ -376,9 +359,6 @@ export function Feedback() {
                   <BonusCriteriaGrid feedback={data} previousMonth={previousMonth} />
                 </div>
               )}
-            </div>
-
-            <div ref={chartsRef} className="space-y-6 bg-white">
               <EvolutionSection
                 history={history}
                 historyLoading={historyLoading}
@@ -425,7 +405,7 @@ function EvolutionSection({
             meses)
           </p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-3" data-pdf-hide="true">
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-xs font-medium text-slate-500">De</span>
             <input
