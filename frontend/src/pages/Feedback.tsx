@@ -145,26 +145,32 @@ export function Feedback() {
     if (!el || !data || !pdfDataReady) return;
     setGeneratingPDF(true);
 
-    // O PDF sempre mostra o detalhamento completo, independente do estado
-    // retratil na tela (clicar ou nao em "Desempenho Total").
-    const wasExpanded = showBreakdown;
-    if (!wasExpanded) setShowBreakdown(true);
-
-    // Largura fixa pra garantir o grid dos cartoes completo na captura.
-    const CAPTURE_WIDTH = 1000;
+    // Largura fixa pra garantir o grid dos cartoes completo na captura -
+    // com menos que isso os 7 cartoes do topo nao cabem lado a lado (os
+    // rotulos tipo "AGENDAMENTOS" nao quebram) e o grid vaza pra direita.
+    const CAPTURE_WIDTH = 1200;
     const prevStyle = el.getAttribute("style") ?? "";
 
-    // Campos de input nativos (ex: os seletores "De"/"Até") nao renderizam
-    // bem no html2canvas (mostram o valor cru "2026-07" em vez do texto
-    // formatado) - escondidos so durante a captura, o resumo em texto ao
-    // lado ja informa o periodo escolhido.
+    // Elementos marcados com data-pdf-hide ficam fora do PDF: campos de
+    // input nativos (ex: os seletores "De"/"Até") nao renderizam bem no
+    // html2canvas (mostram o valor cru "2026-07" em vez do texto formatado,
+    // e o resumo em texto ao lado ja informa o periodo) e o Detalhamento do
+    // Desempenho Total, que fica so na tela.
     const hiddenEls = Array.from(el.querySelectorAll<HTMLElement>("[data-pdf-hide]"));
     const prevHiddenStyles = hiddenEls.map((node) => node.getAttribute("style") ?? "");
 
-    // Espera o breakdown (se acabou de ser forcado a abrir) e os graficos
-    // assentarem antes de mexer no layout - evita capturar um estado a
-    // meio caminho do re-render ("tela antiga"/incompleta no PDF).
+    // Espera os graficos assentarem antes de mexer no layout - evita
+    // capturar um estado a meio caminho do re-render ("tela
+    // antiga"/incompleta no PDF).
     await waitForRender();
+
+    // O html2canvas mede a linha de base das fontes com um <img> de teste
+    // no documento original, e o preflight do Tailwind (img display:block)
+    // estraga essa medida - todo texto sai desenhado mais baixo (ex: o texto
+    // do selo "Abaixo do esperado" abaixo do fundo). So durante a captura.
+    const baselineFix = document.createElement("style");
+    baselineFix.textContent = "img { display: inline-block !important; }";
+    document.head.appendChild(baselineFix);
 
     el.style.width = `${CAPTURE_WIDTH}px`;
     el.style.maxWidth = "none";
@@ -175,11 +181,15 @@ export function Feedback() {
     await waitForRender();
 
     try {
+      // Tamanho pelo conteudo real (scrollWidth/scrollHeight), nao so pela
+      // caixa do elemento - se algo vazar, entra no PDF em vez de ser cortado.
       const canvas = await html2canvas(el, {
         scale: 1.5,
         useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
       });
 
       // Uma unica pagina continua (altura sob medida pro conteudo inteiro)
@@ -191,15 +201,22 @@ export function Feedback() {
       const contentHeightMm = canvas.height / pxPerMm;
       const pageH = contentHeightMm + margin * 2;
 
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [pageW, pageH] });
+      // A orientacao tem que acompanhar as medidas: com "portrait" fixo e o
+      // conteudo mais baixo que largo (pageH < pageW), o jsPDF inverte
+      // largura/altura e a pagina fica estreita - cortando a direita.
+      const pdf = new jsPDF({
+        orientation: pageH >= pageW ? "portrait" : "landscape",
+        unit: "mm",
+        format: [pageW, pageH],
+      });
       pdf.addImage(canvas.toDataURL("image/jpeg", 0.85), "JPEG", margin, margin, usableW, contentHeightMm);
 
       const nomeArquivo = ["feedback", data.employee.name.replace(/\s+/g, "-").toLowerCase(), month].join("_");
       pdf.save(`${nomeArquivo}.pdf`);
     } finally {
+      baselineFix.remove();
       el.setAttribute("style", prevStyle);
       hiddenEls.forEach((node, i) => node.setAttribute("style", prevHiddenStyles[i]));
-      setShowBreakdown(wasExpanded);
       setGeneratingPDF(false);
     }
   }
@@ -354,7 +371,7 @@ export function Feedback() {
               </div>
 
               {showBreakdown && (
-                <div className="space-y-3">
+                <div className="space-y-3" data-pdf-hide="true">
                   <h2 className="text-sm font-semibold text-slate-700">Detalhamento do Desempenho Total</h2>
                   <BonusCriteriaGrid feedback={data} previousMonth={previousMonth} />
                 </div>
@@ -433,7 +450,7 @@ function EvolutionSection({
         </div>
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Agendamentos</h3>
             <IndicatorTrendChart
               data={history ?? []}
@@ -444,7 +461,7 @@ function EvolutionSection({
               formatValue={(v) => formatNumber(v)}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Conversão</h3>
             <IndicatorTrendChart
               data={history ?? []}
@@ -456,7 +473,7 @@ function EvolutionSection({
               domain={[0, 100]}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Chamadas Atendidas</h3>
             <IndicatorTrendChart
               data={history ?? []}
@@ -467,7 +484,7 @@ function EvolutionSection({
               formatValue={(v) => formatNumber(v)}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nota Prova</h3>
             <IndicatorTrendChart
               data={history ?? []}
@@ -479,7 +496,7 @@ function EvolutionSection({
               domain={[0, 10]}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nota Voxia (%)</h3>
             <IndicatorTrendChart
               data={history ?? []}
@@ -491,7 +508,7 @@ function EvolutionSection({
               domain={[0, 100]}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Desempenho Total</h3>
             <BonusTrendChart data={history ?? []} />
           </div>
@@ -611,6 +628,7 @@ function DesempenhoTotalCard({
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
+          data-pdf-hide="true"
           className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />

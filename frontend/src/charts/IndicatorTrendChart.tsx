@@ -1,4 +1,4 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../components/EmptyState";
 
 export function formatMonthShort(monthStr: string): string {
@@ -43,7 +43,7 @@ export function IndicatorTrendChart<T>({
 
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <AreaChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
+      <AreaChart data={chartData} margin={{ top: 24, right: 20, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.25} />
@@ -51,7 +51,15 @@ export function IndicatorTrendChart<T>({
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+        {/* Folga nas pontas pros numeros do primeiro/ultimo ponto nao
+            ficarem em cima do eixo Y nem cortados na borda. */}
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 12, fill: "#64748b" }}
+          axisLine={{ stroke: "#e2e8f0" }}
+          tickLine={false}
+          padding={{ left: 20, right: 20 }}
+        />
         <YAxis
           tick={{ fontSize: 12, fill: "#64748b" }}
           axisLine={false}
@@ -73,7 +81,23 @@ export function IndicatorTrendChart<T>({
           dot={{ r: 3, fill: color }}
           activeDot={{ r: 5 }}
           connectNulls={false}
-        />
+          // Sem animacao: ao gerar o PDF a largura muda, o grafico refaria a
+          // animacao e o html2canvas capturaria a curva no meio do caminho e
+          // sem os numeros (o LabelList so aparece quando a animacao termina).
+          isAnimationActive={false}
+        >
+          {/* Valor escrito em cima de cada ponto - sem isso o numero so
+              aparece no tooltip (hover) e some no PDF/impressao. */}
+          <LabelList
+            dataKey="value"
+            position="top"
+            offset={8}
+            fontSize={11}
+            fontWeight={600}
+            fill="#334155"
+            formatter={(v: number | null | undefined) => (v === null || v === undefined ? "" : formatValue(Number(v)))}
+          />
+        </Area>
       </AreaChart>
     </ResponsiveContainer>
   );
